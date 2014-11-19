@@ -5,41 +5,70 @@ Definition of basic components of PIC18F simulator: core, data memory, program m
 # limit parameters of PICmicro
 PC_SUP = 0x200000
 
+class ByteCell:
+    """Memory cell for storing byte value"""
+    def __init__(self, value=0):
+        """value: byte value of cell (integer between 0-255)"""
+        self.value = value
+
+class StatusCell(ByteCell):
+    """Memory cell for storing status flags"""
+    pass
+
+
 class DataMemory:
-    """Memory for data of PICmicro"""
+    """Data memory of PICmicro"""
 
     DATA_ADDR_SUP = 0x1000
     GPR_ADDR_SUP = 0x300
     SFR_ADDR_MIN = 0xf00
 
+    # SFRs addresses
+    WREG = 0xfe8
+    STATUS = 0xfd8
+    BSR = 0xfe0
+
     def __init__(self):
-        self.__storage = {}
+        """
+        storage: dictionary for storing data at address (dict: integer -> ByteCell)
+        wreg, status, bsr: SFRs of microcontroller
+        """
+        self.storage = {}
+        self.wref = ByteCell()
+        self.status = StatusCell()
+        self.bsr = ByteCell()
 
     def __setitem__(self, addr, value):
-        """set byte to memory cell defined with address 'addr'
+        """set byte to memory cell at given address
 
-        pre:
-            0 <= addr < GPR_ADDR_SUP or SFR_ADDR_MIN <= addr < DATA_ADDR_SUP
-            0 <= value <= 255
-        post:
-            self[addr] == value
+        addr: address of data memory 
+            (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
+        value: stored value to memory (integer between 0-255)
         """
-
-        assert(0 <= addr < self.GPR_ADDR_SUP or \
-               self.SFR_ADDR_MIN <= addr < self.DATA_ADDR_SUP)
-        assert(0 <= value <= 255)
-        self.__storage[addr] = value
+        if addr == self.WREG:
+            self.wreg.value = value
+        if addr == self.BSR:
+            self.bsr.value = value
+        if addr == self.STATUS:
+            self.status.value = value
+        else:
+            cell = self.storage.setdefault(addr, ByteCell())
+            cell.value = value
 
     def __getitem__(self, addr):
-        """get byte from memory cell defined with address 'addr'
+        """get byte cell from memory at given address
 
-        pre:
-            0 <= addr < GPR_ADDR_SUP or SFR_ADDR_MIN <= addr < DATA_ADDR_SUP
+        addr: address of data memory 
+            (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
         """
+        return self.__storage.setdefault(addr, ByteCell())
 
-        assert(0 <= addr < self.GPR_ADDR_SUP or \
-               self.SFR_ADDR_MIN <= addr < self.DATA_ADDR_SUP)
-        return self.__storage.setdefault(addr, 0)
+    @property
+    def wreg(self):
+        return self.data[self.WREG]
+    @wreg.setter
+    def wreg(self, value):
+        self.data[self.WREG] = value
 
 
 class PICmicro(object):
@@ -50,9 +79,6 @@ class PICmicro(object):
         0 <= self.pc < PC_SUP
         isinstance(self.data, DataMemory)
     """
-
-    # named addresses of SFRs
-    WREG = 0xfe8
 
     def __init__(self):
         self.__pc = 0
@@ -65,10 +91,3 @@ class PICmicro(object):
     def pc(self, value):
         assert(0 <= value < PC_SUP)
         self.__pc = value
-
-    @property
-    def wreg(self):
-        return self.data[self.WREG]
-    @wreg.setter
-    def wreg(self, value):
-        self.data[self.WREG] = value
