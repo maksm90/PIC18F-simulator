@@ -1,22 +1,68 @@
 """
-Definition of basic components of PIC18F simulator: core, data memory, program memory, etc
+Definition of basic components of PIC18F simulator
 """
 
 # limit parameters of PICmicro
 PC_SUP = 0x200000
 
-class ByteCell:
-    """Memory cell for storing byte value"""
+class Register:
+    """Register for storing byte value
+
+    inv: 
+        self.value & 0xff == self.value
+    """
     def __init__(self, value=0):
-        """value: byte value of cell (integer between 0-255)"""
+        """value: byte value of register (integer between 0-255)"""
         self.value = value
 
-class StatusCell(ByteCell):
-    """Memory cell for storing status flags"""
-    pass
+# status bit masks
+C = 0b00001
+DC = 0b00010
+Z = 0b00100
+OV = 0b01000
+N = 0b10000
+
+class StatusReg(Register):
+    """Register for storing status flags"""
+    def set(self, bit_mask):
+        self.value |= bit_mask
+    def reset(self, bit_mask):
+        self.value &= ~bit_mask
+
+class RegularReg(Register):
+    """Register with simple arithmetic operations"""
+
+    def add(self, value, flag_reg=None):
+        """ 
+        pre: value & 0xff == value
+        post: self.value == (__old__.self.value + value) & 0xff
+        """
+        result = self.value + value
+        if flag_reg != None:
+            if result & 0x80 == 0x80:
+                flag_reg.set(N)
+            else:
+                flag_reg.reset(N)
+            if (self.value & 0x80 == value & 0x80) and (result & 0x80 != value & 0x80):
+                flag_reg.set(OV)
+            else:
+                flag_reg.reset(OV)
+            if result & 0xff == 0:
+                flag_reg.set(Z)
+            else:
+                flag_reg.reset(Z)
+            if ((self.value & 0xf) + (value & 0xf)) & 0x10 == 0:
+                flag_reg.reset(DC)
+            else:
+                flag_reg.set(DC)
+            if result & 0x100 == 0:
+                flag_reg.reset(C)
+            else:
+                flag_reg.set(C)
+        self.value = result & 0xff
 
 
-class DataMemory:
+class DataMemory(object):
     """Data memory of PICmicro"""
 
     DATA_ADDR_SUP = 0x1000
@@ -34,9 +80,9 @@ class DataMemory:
         wreg, status, bsr: SFRs of microcontroller
         """
         self.storage = {}
-        self.wref = ByteCell()
-        self.status = StatusCell()
-        self.bsr = ByteCell()
+        self.wreg = RegularReg()
+        self.status = StatusReg()
+        self.bsr = RegularReg()
 
     def __setitem__(self, addr, value):
         """set byte to memory cell at given address
@@ -63,31 +109,17 @@ class DataMemory:
         """
         return self.__storage.setdefault(addr, ByteCell())
 
-    @property
-    def wreg(self):
-        return self.data[self.WREG]
-    @wreg.setter
-    def wreg(self, value):
-        self.data[self.WREG] = value
-
 
 class PICmicro(object):
-
     """PIC18F microcontroller definition
     
     inv: 
         0 <= self.pc < PC_SUP
-        isinstance(self.data, DataMemory)
     """
 
-    def __init__(self):
-        self.__pc = 0
-        self.data = DataMemory()
+    def __init__(self, data=DataMemory()):
+        self.pc = 0
+        self.data = data
 
-    @property
-    def pc(self):
-        return self.__pc
-    @pc.setter
-    def pc(self, value):
-        assert(0 <= value < PC_SUP)
-        self.__pc = value
+    def inc_pc(self, delta):
+        self.pc = (self.pc + delta) & PC_SUP
