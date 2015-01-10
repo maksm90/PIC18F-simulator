@@ -24,9 +24,9 @@ N = 0b10000
 
 class StatusReg(Register):
     """Register for storing status flags"""
-    def set(self, bit_mask):
+    def set_bit(self, bit_mask):
         self.value |= bit_mask
-    def reset(self, bit_mask):
+    def reset_bit(self, bit_mask):
         self.value &= ~bit_mask
 
 class RegularReg(Register):
@@ -40,25 +40,25 @@ class RegularReg(Register):
         result = self.value + value
         if flag_reg != None:
             if result & 0x80 == 0x80:
-                flag_reg.set(N)
+                flag_reg.set_bit(N)
             else:
-                flag_reg.reset(N)
+                flag_reg.reset_bit(N)
             if (self.value & 0x80 == value & 0x80) and (result & 0x80 != value & 0x80):
-                flag_reg.set(OV)
+                flag_reg.set_bit(OV)
             else:
-                flag_reg.reset(OV)
+                flag_reg.reset_bit(OV)
             if result & 0xff == 0:
-                flag_reg.set(Z)
+                flag_reg.set_bit(Z)
             else:
-                flag_reg.reset(Z)
+                flag_reg.reset_bit(Z)
             if ((self.value & 0xf) + (value & 0xf)) & 0x10 == 0:
-                flag_reg.reset(DC)
+                flag_reg.reset_bit(DC)
             else:
-                flag_reg.set(DC)
+                flag_reg.set_bit(DC)
             if result & 0x100 == 0:
-                flag_reg.reset(C)
+                flag_reg.reset_bit(C)
             else:
-                flag_reg.set(C)
+                flag_reg.set_bit(C)
         self.value = result & 0xff
 
 
@@ -107,7 +107,7 @@ class DataMemory(object):
         addr: address of data memory 
             (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
         """
-        return self.__storage.setdefault(addr, ByteCell())
+        return self.storage.setdefault(addr, ByteCell())
 
 
 class PICmicro(object):
