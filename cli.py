@@ -1,12 +1,33 @@
-import sys
-import picmicro
+from cmd import Cmd
+from picmicro import PICmicro
+import op
 
-pic = picmicro.PICmicro()
+class CLI(Cmd):
+    """Command processor for pic microcontroller"""
 
-print '*** Starting CLI:'
-while True:
-    text_cmd = raw_input('minipic> ')
-    if text_cmd == 'exit':
+    prompt = 'minipic> '
+
+    pic = PICmicro()
+
+    def do_addlw(self, line):
+        """
+        addlw <byte>
+        Add constant byte value to WREG 
+        """
+        op.addlw(self.pic, int(line))
+
+    def do_exit(self, line):
+        """
+        Exit from CLI
+        """
+        return True
+
+    def preloop(self):
+        print '*** Starting CLI:'
+
+    def postloop(self):
         print '*** Done'
-        sys.exit(0)
-    print '*** input command is "' + text_cmd + '"'
+
+
+if __name__ == '__main__':
+    CLI().cmdloop()
