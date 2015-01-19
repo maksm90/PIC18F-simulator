@@ -1,65 +1,86 @@
 """
 Definition of basic components of PIC18F simulator
+
+Register: superclass for all memory cells
 """
 
-# limit parameters of PICmicro
-PC_SUP = 0x200000
-
 class Register:
-    """Register for storing byte value
-
-    inv: 
-        self.value & 0xff == self.value
-    """
+    """Register for storing byte value"""
     def __init__(self, value=0):
-        """value: byte value of register (integer between 0-255)"""
+        """
+        value: byte value of register (integer between 0-255)
+        """
         self.value = value
 
-# status bit masks
-C = 0b00001
-DC = 0b00010
-Z = 0b00100
-OV = 0b01000
-N = 0b10000
-
 class StatusReg(Register):
-    """Register for storing status flags"""
-    def set_bit(self, bit_mask):
-        self.value |= bit_mask
-    def reset_bit(self, bit_mask):
-        self.value &= ~bit_mask
+    """Register for storing status statuss""" 
+
+    C = 0b00001
+    DC = 0b00010
+    Z = 0b00100
+    OV = 0b01000
+    N = 0b10000
+
+    def set_C(self):
+        self.value |= self.C
+    def set_DC(self):
+        self.value |= self.DC
+    def set_Z(self):
+        self.value |= self.Z
+    def set_OV(self):
+        self.value |= self.OV 
+    def set_N(self):
+        self.value |= self.N
+    def reset_C(self):
+        self.value &= ~self.C
+    def reset_DC(self):
+        self.value &= ~self.DC
+    def reset_Z(self):
+        self.value &= ~self.Z
+    def reset_OV(self):
+        self.value &= ~self.OV
+    def reset_N(self):
+        self.value &= ~self.N
 
 class RegularReg(Register):
     """Register with simple arithmetic operations"""
 
-    def add(self, value, flag_reg=None):
-        """ 
-        pre: value & 0xff == value
-        post: self.value == (__old__.self.value + value) & 0xff
+    def add(self, other, status=None):
+        """Add value of current register with other object into current register
+        other: either byte value or register with that current register is sum up
+        status: status register for detecting specific events after operations has done
         """
+        value = other.value if isinstance(other, Register) else other
         result = self.value + value
-        if flag_reg != None:
+        if status != None:
             if result & 0x80 == 0x80:
-                flag_reg.set_bit(N)
+                status.set_N()
             else:
-                flag_reg.reset_bit(N)
+                status.reset_N()
             if (self.value & 0x80 == value & 0x80) and (result & 0x80 != value & 0x80):
-                flag_reg.set_bit(OV)
+                status.set_OV()
             else:
-                flag_reg.reset_bit(OV)
+                status.reset_OV()
             if result & 0xff == 0:
-                flag_reg.set_bit(Z)
+                status.set_Z()
             else:
-                flag_reg.reset_bit(Z)
+                status.reset_Z()
             if ((self.value & 0xf) + (value & 0xf)) & 0x10 == 0:
-                flag_reg.reset_bit(DC)
+                status.reset_DC()
             else:
-                flag_reg.set_bit(DC)
+                status.set_DC()
             if result & 0x100 == 0:
-                flag_reg.reset_bit(C)
+                status.reset_C()
             else:
-                flag_reg.set_bit(C)
+                status.set_C()
         self.value = result & 0xff
+
+    def sub(self, other, status=None):
+        if isinstance(other, Register):
+            other.value = (~other.value + 1) % 0xff
+        else:
+            other = (~other + 1) % 0xff
+        self.add(self, other, status)
 
 
 class DataMemory(object):
@@ -109,6 +130,9 @@ class DataMemory(object):
         """
         return self.storage.setdefault(addr, ByteCell())
 
+
+# limit parameters of PICmicro
+PC_SUP = 0x200000
 
 class PICmicro(object):
     """PIC18F microcontroller definition

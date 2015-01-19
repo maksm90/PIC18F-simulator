@@ -1,15 +1,17 @@
 import unittest
-import picmicro
+from picmicro import RegularReg, StatusReg
 
 
 class TestRegularReg(unittest.TestCase):
+
     def setUp(self):
-        self.reg = picmicro.RegularReg()
+        self.reg = RegularReg()
+
     def test_add(self):
         self.reg.add(1)
         self.assertEqual(self.reg.value, 1)
 
-        status = picmicro.StatusReg()
+        status = StatusReg()
         self.reg.add(1, status)
         self.assertEqual(status.value, 0)
 

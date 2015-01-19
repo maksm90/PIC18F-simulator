@@ -5,6 +5,7 @@ from picmicro import PICmicro
 class TestAllOps(unittest.TestCase):
     def setUp(self):
         self.pic = PICmicro()
+    @unittest.skip("")
     def test_addlw(self):
         self.pic.data.wreg.value = 0x10
         op.addlw(self.pic, 0x15)
