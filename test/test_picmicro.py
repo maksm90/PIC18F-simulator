@@ -3,7 +3,6 @@ from picmicro import RegularReg, StatusReg
 
 
 class TestRegularReg(unittest.TestCase):
-
     def setUp(self):
         self.reg = RegularReg()
 
