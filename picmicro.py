@@ -1,109 +1,11 @@
 """
 Definition of basic components of PIC18F simulator
 
-Register: superclass for all memory cells
-
-StatusReg: status register of PIC18F
-
-RegularReg: simple register under that arithmetic operations are defined
-
 DataMemory: memory for storing General Purpose Registers and Specific Purpose Registers
 OutOfDataMemoryAccess: exception raised after access to nonexisting cell 
 
 PICmicro: main class describing core of PIC18F
 """
-
-class Register:
-    """Register for storing byte value"""
-    def __init__(self, value=0):
-        """
-        value: byte value of register (integer between 0-255)
-        """
-        self.value = value
-
-class StatusReg(Register):
-    """Register for storing status statuss""" 
-
-    C = 0b00001
-    DC = 0b00010
-    Z = 0b00100
-    OV = 0b01000
-    N = 0b10000
-
-    def __init__(self):
-        self.__value = 0
-
-    @property
-    def value(self):
-        return self.__value
-    @value.setter
-    def value(self, val):
-        pass
-
-    def set_C(self):
-        self.value |= self.C
-    def set_DC(self):
-        self.value |= self.DC
-    def set_Z(self):
-        self.value |= self.Z
-    def set_OV(self):
-        self.value |= self.OV 
-    def set_N(self):
-        self.value |= self.N
-    def reset_C(self):
-        self.value &= ~self.C
-    def reset_DC(self):
-        self.value &= ~self.DC
-    def reset_Z(self):
-        self.value &= ~self.Z
-    def reset_OV(self):
-        self.value &= ~self.OV
-    def reset_N(self):
-        self.value &= ~self.N
-
-class RegularReg(Register):
-    """Register with simple arithmetic operations"""
-
-    def add(self, other, status=None):
-        """Add value of current register with other object into current register
-        other: either byte value or register with that current register is sum up
-        status: status register for detecting specific events after operations has done
-        """
-        value = other.value if isinstance(other, Register) else other
-        result = self.value + value
-        if status != None:
-            if result & 0x80 == 0x80:
-                status.set_N()
-            else:
-                status.reset_N()
-            if (self.value & 0x80 == value & 0x80) and (result & 0x80 != value & 0x80):
-                status.set_OV()
-            else:
-                status.reset_OV()
-            if result & 0xff == 0:
-                status.set_Z()
-            else:
-                status.reset_Z()
-            if ((self.value & 0xf) + (value & 0xf)) & 0x10 == 0:
-                status.reset_DC()
-            else:
-                status.set_DC()
-            if result & 0x100 == 0:
-                status.reset_C()
-            else:
-                status.set_C()
-        self.value = result & 0xff
-
-    def sub(self, other, status=None):
-        """Substitute other from current register and save result in current register
-        other: either byte value or register participating in substitution
-        status: status register for detecting specific events after operations has done
-        """
-        if isinstance(other, Register):
-            other.value = (~other.value + 1) % 0xff
-        else:
-            other = (~other + 1) % 0xff
-        self.add(self, other, status)
 
 class OutOfDataMemoryAccess(Exception):
     pass
@@ -117,17 +19,18 @@ class DataMemory:
 
     def __init__(self):
         """
-        storage: dictionary for storing data at address (dict: integer -> ByteCell)
+        storage: dictionary for storing data at address (dict: integer -> byte value)
         """
         self.storage = {}
 
-    def __setitem__(self, addr, other):
+    def __setitem__(self, addr, byte):
         """set byte to memory cell at given address
 
-        addr: address of data memory (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
-        other: byte value or register to be stored in memory (integer between 0-255)
-        throws: OutOfDataMemoryAccess if addr havn't entered in acceptable interval
+        addr: address of data memory (integer from 0 up to DATA_ADDR_SUP)
+        byte: byte value to be stored in memory (integer between 0-255)
+        throws: OutOfDataMemoryAccess if addr doesn't enter in acceptable interval
         """
+        assert 0 <= byte <= 0xff
         if not (0 <= addr < self.DATA_ADDR_SUP):
             raise OutOfDataMemoryAccess()
         if addr < self.GPR_ADDR_SUP or addr >= self.SFR_ADDR_MIN:
