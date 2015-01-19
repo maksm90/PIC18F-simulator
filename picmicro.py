@@ -2,6 +2,15 @@
 Definition of basic components of PIC18F simulator
 
 Register: superclass for all memory cells
+
+StatusReg: status register of PIC18F
+
+RegularReg: simple register under that arithmetic operations are defined
+
+DataMemory: memory for storing General Purpose Registers and Specific Purpose Registers
+OutOfDataMemoryAccess: exception raised after access to nonexisting cell 
+
+PICmicro: main class describing core of PIC18F
 """
 
 class Register:
@@ -20,6 +29,16 @@ class StatusReg(Register):
     Z = 0b00100
     OV = 0b01000
     N = 0b10000
+
+    def __init__(self):
+        self.__value = 0
+
+    @property
+    def value(self):
+        return self.__value
+    @value.setter
+    def value(self, val):
+        pass
 
     def set_C(self):
         self.value |= self.C
@@ -76,74 +95,100 @@ class RegularReg(Register):
         self.value = result & 0xff
 
     def sub(self, other, status=None):
+        """Substitute other from current register and save result in current register
+        other: either byte value or register participating in substitution
+        status: status register for detecting specific events after operations has done
+        """
         if isinstance(other, Register):
             other.value = (~other.value + 1) % 0xff
         else:
             other = (~other + 1) % 0xff
         self.add(self, other, status)
 
+class OutOfDataMemoryAccess(Exception):
+    pass
 
-class DataMemory(object):
+class DataMemory:
     """Data memory of PICmicro"""
 
     DATA_ADDR_SUP = 0x1000
     GPR_ADDR_SUP = 0x300
     SFR_ADDR_MIN = 0xf00
 
-    # SFRs addresses
-    WREG = 0xfe8
-    STATUS = 0xfd8
-    BSR = 0xfe0
-
     def __init__(self):
         """
         storage: dictionary for storing data at address (dict: integer -> ByteCell)
-        wreg, status, bsr: SFRs of microcontroller
         """
         self.storage = {}
-        self.wreg = RegularReg()
-        self.status = StatusReg()
-        self.bsr = RegularReg()
 
-    def __setitem__(self, addr, value):
+    def __setitem__(self, addr, other):
         """set byte to memory cell at given address
 
-        addr: address of data memory 
-            (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
-        value: stored value to memory (integer between 0-255)
+        addr: address of data memory (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
+        other: byte value or register to be stored in memory (integer between 0-255)
+        throws: OutOfDataMemoryAccess if addr havn't entered in acceptable interval
         """
-        if addr == self.WREG:
-            self.wreg.value = value
-        if addr == self.BSR:
-            self.bsr.value = value
-        if addr == self.STATUS:
-            self.status.value = value
-        else:
-            cell = self.storage.setdefault(addr, ByteCell())
-            cell.value = value
+        if not (0 <= addr < self.DATA_ADDR_SUP):
+            raise OutOfDataMemoryAccess()
+        if addr < self.GPR_ADDR_SUP or addr >= self.SFR_ADDR_MIN:
+            cell = self[addr]
+            cell.value = other.value if isinstance(other, Register) else other
 
     def __getitem__(self, addr):
         """get byte cell from memory at given address
 
         addr: address of data memory 
             (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
+        return: register object associated with address 'addr'
+        throws: OutOfDataMemoryAccess if addr havn't entered in acceptable interval
         """
-        return self.storage.setdefault(addr, ByteCell())
+        if not (0 <= addr < self.DATA_ADDR_SUP):
+            raise OutOfDataMemoryAccess()
+        if addr < self.GPR_ADDR_SUP or addr >= self.SFR_ADDR_MIN:
+            return self.storage.setdefault(addr, RegularReg())
+        return 0
 
-
-# limit parameters of PICmicro
-PC_SUP = 0x200000
 
 class PICmicro(object):
-    """PIC18F microcontroller definition
-    
-    inv: 
-        0 <= self.pc < PC_SUP
-    """
+    """PIC18F microcontroller definition"""
+
+    # SFRs addresses
+    WREG = 0xfe8
+    STATUS = 0xfd8
+    BSR = 0xfe0
+
+    # limit parameters of PICmicro
+    PC_SUP = 0x200000
 
     def __init__(self, data=DataMemory()):
+        """
+        pc: program counter (integer from 0 up to PC_SUP)
+        data: data memory
+        """
         self.pc = 0
         self.data = data
 
+        self.wreg = 0
+        self.bsr = 0
+        self.status = 0
+
     def inc_pc(self, delta):
-        self.pc = (self.pc + delta) & PC_SUP
+        self.pc = (self.pc + delta) & self.PC_SUP
+
+    @property
+    def wreg(self):
+        return self.data[self.WREG]
+    @wreg.setter
+    def wreg(self, value):
+        self.data[self.WREG] = value
+    
+    @property
+    def status(self):
+        return self.data[self.STATUS]
+
+    @property
+    def bsr(self):
+        return self.data[self.BSR]
+    @bsr.setter
+    def bsr(self, value):
+        self.data[self.BSR] = value
