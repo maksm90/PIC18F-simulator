@@ -15,17 +15,18 @@ class DataMemory:
 
     DATA_ADDR_SUP = 0x1000
     GPR_ADDR_SUP = 0x300
-    SFR_ADDR_MIN = 0xf00
+    SFR_ADDR_MIN = 0xf80
 
-    def __init__(self):
+    def __init__(self, sfr, gpr):
+        """Initialize memory of data that consists of GPRs and SFRs
+        sfr: array composed of SFR entries
+        gpr: empty dictionary that maps address cell to GPR entry
         """
-        storage: dictionary for storing data at address (dict: integer -> byte value)
-        """
-        self.storage = {}
+        self.sfr = sfr
+        self.gpr = gpr
 
     def __setitem__(self, addr, byte):
         """set byte to memory cell at given address
-
         addr: address of data memory (integer from 0 up to DATA_ADDR_SUP)
         byte: byte value to be stored in memory (integer between 0-255)
         throws: OutOfDataMemoryAccess if addr doesn't enter in acceptable interval
@@ -33,65 +34,77 @@ class DataMemory:
         assert 0 <= byte <= 0xff
         if not (0 <= addr < self.DATA_ADDR_SUP):
             raise OutOfDataMemoryAccess()
-        if addr < self.GPR_ADDR_SUP or addr >= self.SFR_ADDR_MIN:
-            cell = self[addr]
-            cell.value = other.value if isinstance(other, Register) else other
+
+        if addr < self.GPR_ADDR_SUP:
+            self.gpr[addr] = byte
+        elif addr >= self.SFR_ADDR_MIN:
+            self.sfr[addr - self.SFR_ADDR_MIN] = byte
 
     def __getitem__(self, addr):
         """get byte cell from memory at given address
-
-        addr: address of data memory 
-            (integer from 0 up to GPR_ADDR_SUP or from SFR_ADDR_MIN up to DATA_ADDR_SUP)
-        return: register object associated with address 'addr'
+        addr: address of data memory (integer from 0 up to DATA_ADDR_SUP)
+        return: byte value associated with input address
         throws: OutOfDataMemoryAccess if addr havn't entered in acceptable interval
         """
+        assert 0 <= byte <= 0xff
         if not (0 <= addr < self.DATA_ADDR_SUP):
             raise OutOfDataMemoryAccess()
-        if addr < self.GPR_ADDR_SUP or addr >= self.SFR_ADDR_MIN:
-            return self.storage.setdefault(addr, RegularReg())
+
+        if addr < self.GPR_ADDR_SUP:
+            return self.gpr[addr]
+        if addr >= self.SFR_ADDR_MIN:
+            return self.sfr[addr - self.SFR_ADDR_MIN]
         return 0
 
 
 class PICmicro(object):
     """PIC18F microcontroller definition"""
 
-    # SFRs addresses
-    WREG = 0xfe8
-    STATUS = 0xfd8
-    BSR = 0xfe0
+    # indices of SFRs
+    WREG = 0x68
+    STATUS = 0x58
+    BSR = 0x60
 
     # limit parameters of PICmicro
     PC_SUP = 0x200000
+    N_SFRs = 0x80
 
-    def __init__(self, data=DataMemory()):
-        """
-        pc: program counter (integer from 0 up to PC_SUP)
-        data: data memory
-        """
-        self.pc = 0
-        self.data = data
+    def __init__(self):
+        """Initialize state of PIC18F"""
 
-        self.wreg = 0
-        self.bsr = 0
-        self.status = 0
+        self.__pc = 0                                       # program counter
+        self.__sfr = [0] * N_SFRs                           # specific purpose registers
+        self.__gpr = {}                                     # general puspose registers
+
+        self.data = DataMemory(self.__sfr, self.__gpr)      # addressable memory
+
+    @property
+    def pc(self):
+        return pc
 
     def inc_pc(self, delta):
+        """Increment program counter by delta"""
         self.pc = (self.pc + delta) & self.PC_SUP
+
+    def set_status(self, bit_mask):
+        self.__sfr[self.STATUS] |= bit_mask
+    def reset_status(self, bit_mask):
+        self.__sfr[self.STATUS] &= ~bit_mask
 
     @property
     def wreg(self):
-        return self.data[self.WREG]
+        return self.__sfr[self.WREG]
     @wreg.setter
     def wreg(self, value):
-        self.data[self.WREG] = value
-    
+        self.__sfr[self.WREG] = value
+
     @property
     def status(self):
-        return self.data[self.STATUS]
+        return self.__sfr[self.STATUS]
 
     @property
     def bsr(self):
-        return self.data[self.BSR]
+        return self.__sfr[self.BSR]
     @bsr.setter
     def bsr(self, value):
-        self.data[self.BSR] = value
+        self.__sfr[self.BSR] = value
