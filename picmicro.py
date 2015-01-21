@@ -64,7 +64,6 @@ class PICmicro(object):
     STATUS = 0x58
     BSR = 0x60
 
-    # limit parameters of PICmicro
     ADDR_MASK = 0x1fffff
     N_SFRs = 0x80
 
