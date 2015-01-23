@@ -42,14 +42,13 @@ class TestPICmicro(unittest.TestCase):
         self.pic.incPC(10)
         self.assertEqual(self.pic.pc, 12)
 
-    @unittest.skip('')
     def testSetStatus(self):
-        self.pic.setStatus(0)
+        self.pic.setStatusBits(0)
         self.assertEqual(self.pic.status, 0)
         self.pic.setStatusBits(0b0101)
-        self.assertEqual(self.pic.status, 0x0101)
+        self.assertEqual(self.pic.status, 0b0101)
         self.pic.setStatusBits(0b0010)
-        self.assertEqual(self.pic.status, 0x0111)
+        self.assertEqual(self.pic.status, 0b0111)
 
 
 if __name__ == '__main__':
