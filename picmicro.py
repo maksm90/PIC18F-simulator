@@ -17,13 +17,12 @@ class DataMemory:
     GPR_ADDR_SUP = 0x300
     SFR_ADDR_MIN = 0xf80
 
-    def __init__(self, sfr, gpr):
+    def __init__(self, sfr):
         """Initialize memory of data that consists of GPRs and SFRs
         sfr: array composed of SFR entries
-        gpr: empty dictionary that maps address cell to GPR entry
         """
         self.sfr = sfr
-        self.gpr = gpr
+        self.gpr = {}               # general puspose registers
 
     def __setitem__(self, addr, byte):
         """set byte to memory cell at given address
@@ -69,12 +68,9 @@ class PICmicro(object):
 
     def __init__(self):
         """Initialize state of PIC18F"""
-
         self.__pc = 0                                       # program counter
-        self.__sfr = [0] * self.N_SFRs                      # specific purpose registers
-        self.__gpr = {}                                     # general puspose registers
-
-        self.data = DataMemory(self.__sfr, self.__gpr)      # addressable memory
+        self.sfr = [0] * self.N_SFRs                        # specific purpose registers
+        self.data = DataMemory(self.sfr)                    # addressable memory
 
     @property
     def pc(self):
@@ -85,26 +81,26 @@ class PICmicro(object):
         self.__pc = (self.__pc + delta) & self.ADDR_MASK
 
     def setStatusBits(self, bit_mask):
-        self.__sfr[self.STATUS] |= bit_mask
+        self.sfr[self.STATUS] |= bit_mask
     def resetStatusBits(self, bit_mask):
-        self.__sfr[self.STATUS] &= ~bit_mask
+        self.sfr[self.STATUS] &= ~bit_mask
 
     @property
     def wreg(self):
-        return self.__sfr[self.WREG]
+        return self.sfr[self.WREG]
     @wreg.setter
     def wreg(self, value):
         assert 0 <= value <= 0xff
-        self.__sfr[self.WREG] = value
+        self.sfr[self.WREG] = value
 
     @property
     def status(self):
-        return self.__sfr[self.STATUS]
+        return self.sfr[self.STATUS]
 
     @property
     def bsr(self):
-        return self.__sfr[self.BSR]
+        return self.sfr[self.BSR]
     @bsr.setter
     def bsr(self, value):
         assert 0 <= value <= 0xff
-        self.__sfr[self.BSR] = value
+        self.sfr[self.BSR] = value

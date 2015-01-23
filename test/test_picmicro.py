@@ -8,8 +8,7 @@ class TestDataMemory(unittest.TestCase):
     def setUp(self):
         N_SFRs = 0x80
         sfr = [0] * N_SFRs
-        gpr = {}
-        self.data = DataMemory(sfr, gpr)
+        self.data = DataMemory(sfr)
 
     def _testSetGetByte(self, addr):
         self.data[addr] = 10

@@ -24,32 +24,29 @@ class CLI(Cmd):
         """
         return True
 
-    def do_set(self, args):
-        print args
+    def setValue(self, identifier, value):
+        print identifier, value
 
-    def do_get(self, args):
-        print args
+    def getValue(self, identifier):
+        print identifier
 
-    def parseline(self, line):
-        #identifier_pattern = '[a-z]\w*'
-        #number_pattern = '\d+|0x[\da-f]+'
-        #data_mem_pattern = 'data\[(' + number_pattern + ')\]'
+    def default(self, line):
         term_pattern = '[\w\[\]]+'
-        set_cmd_pattern = '^\s*(' + term_pattern + ')\s*=\s*(' + term_pattern + ')\s*$'
-        get_cmd_pattern = '^\s*(' + term_pattern + ')\s*$'
+        set_val_pattern = '^\s*(' + term_pattern + ')\s*=\s*(' + term_pattern + ')\s*$'
+        get_val_pattern = '^\s*(' + term_pattern + ')\s*$'
 
-        set_re = re.compile(set_cmd_pattern, re.IGNORECASE)
-        get_re = re.compile(get_cmd_pattern, re.IGNORECASE)
+        set_re = re.compile(set_val_pattern, re.IGNORECASE)
+        get_re = re.compile(get_val_pattern, re.IGNORECASE)
 
         m = set_re.match(line)
         if m != None:
-            return ('set', (m.group(1), m.group(2)), line)
+            return self.setValue(m.group(1), m.group(2))
 
         m = get_re.match(line)
         if m != None:
-            return ('get', m.group(1), line)
+            return self.getValue(m.group(1))
 
-        Cmd.parseline(self, line)
+        return Cmd.default(line)
 
     def preloop(self):
         print '*** Starting CLI:'
