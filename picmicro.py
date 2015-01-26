@@ -99,7 +99,7 @@ class PICmicro(object):
 
     @property
     def bsr(self):
-        return self.sfr[self.BSR]
+        return self.sfr[self.BSR] & 0xf
     @bsr.setter
     def bsr(self, value):
         assert 0 <= value <= 0xff

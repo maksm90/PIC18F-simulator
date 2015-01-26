@@ -27,6 +27,21 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.data[0], 0x09)
         self.assertEqual(self.pic.status, op.C | op.OV)
 
+    def testConjuction(self):
+        op._and(self.pic, 0, 0)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+        self.pic.data[0] = 0xff
+        op._and(self.pic, 0, 0xf)
+        self.assertEqual(self.pic.data[0], 0xf)
+        self.assertEqual(self.pic.status, 0)
+
+        self.pic.data[0] = 0xf0
+        op._and(self.pic, 0, 0x8f)
+        self.assertEqual(self.pic.data[0], 0x80)
+        self.assertEqual(self.pic.status, op.N)
+
     def testAddlw(self):
         self.pic.wreg = 0x10
         op.addlw(self.pic, 0x15)
@@ -40,6 +55,10 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.wreg, 0xd9)
         self.assertEqual(self.pic.data[0], 0xc2)
 
+        op.addwf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.wreg, 0xd9)
+        self.assertEqual(self.pic.data[0], 0x9b)
+
     def testAddwfc(self):
         self.pic.setStatusBits(op.C)
         self.pic.data[0] = 0x4d
@@ -48,6 +67,75 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.status & op.C, 0)
         self.assertEqual(self.pic.data[0], 0x4d)
         self.assertEqual(self.pic.wreg, 0x50)
+
+        op.addwfc(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.wreg, 0x50)
+        self.assertEqual(self.pic.data[0], 0x9d)
+        self.assertEqual(self.pic.status & op.C, 0)
+
+    def testAndwf(self):
+        self.pic.wreg = 0x17
+        self.pic.data[0] = 0xc2
+        op.andwf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.wreg, 0x02)
+        self.assertEqual(self.pic.data[0], 0xc2)
+        self.assertEqual(self.pic.status, 0x0)
+
+        op.andwf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.wreg, 0x02)
+        self.assertEqual(self.pic.data[0], 0x02)
+
+    def testClrf(self):
+        self.pic.data[0] = 0xf
+        op.clrf(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+    def testCompf(self):
+        self.pic.data[0] = 0x13
+        op.comf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0x13)
+        self.assertEqual(self.pic.wreg, 0xec)
+        self.assertEqual(self.pic.status, op.N)
+
+        self.pic.data[1] = 0xff
+        op.comf(self.pic, 1, 1, 1)
+        self.assertEqual(self.pic.data[1], 0)
+        self.assertEqual(self.pic.wreg, 0xec)
+        self.assertEqual(self.pic.status, op.Z)
+
+        self.pic.data[0] = 0xec
+        op.comf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0xec)
+        self.assertEqual(self.pic.wreg, 0x13)
+        self.assertEqual(self.pic.status, 0)
+
+    def testCpfseq(self):
+        op.cpfseq(self.pic, 0, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+        self.pic.wreg = 1
+        op.cpfseq(self.pic, 0, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+    def testCpfsgt(self):
+        op.cpfsgt(self.pic, 0, 0)
+        self.assertEqual(self.pic.pc, 0)
+
+        self.pic.wreg = 1
+        op.cpfsgt(self.pic, 0, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+    def testCpfslt(self):
+        op.cpfslt(self.pic, 0, 0)
+        self.assertEqual(self.pic.pc, 0)
+
+        self.pic.data[0] = 1
+        op.cpfslt(self.pic, 0, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+    def testDecf(self):
+        pass
 
 
 if __name__ == '__main__':
