@@ -135,8 +135,61 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.pc, 2)
 
     def testDecf(self):
-        pass
+        self.pic.data[0] = 0x01
+        op.decf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.status, op.Z | op.DC | op.C)
 
+        op.decf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.wreg, 0xff)
+        self.assertEqual(self.pic.status, op.N)
+
+        self.pic.data[0] = 0x80
+        op.decf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0x7f)
+        self.assertEqual(self.pic.status, op.OV | op.C)
+
+    def testDecfsz(self):
+        self.pic.data[0] = 0x2
+        op.decfsz(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0x1)
+        self.assertEqual(self.pic.pc, 0)
+        op.decfsz(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0x1)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+    def testDcfsnz(self):
+        self.pic.data[0] = 0x2
+        op.dcfsnz(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0x1)
+        self.assertEqual(self.pic.pc, 2)
+        op.dcfsnz(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0x1)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+    def testIncf(self):
+        self.pic.data[0] = 0xff
+        op.incf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.status, op.Z | op.C | op.DC)
+
+        op.incf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.wreg, 1)
+        self.assertEqual(self.pic.status, 0)
+
+        self.pic.data[0] = 0x7f
+        op.incf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0x80)
+        self.assertEqual(self.pic.status, op.OV | op.N | op.DC)
+
+    def testIncfsz(self):
+        pass
+        #self.pic.data[0] = 
+    def testInfsnz(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
