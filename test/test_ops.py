@@ -42,6 +42,19 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.data[0], 0x80)
         self.assertEqual(self.pic.status, op.N)
 
+    def testDisjunction(self):
+        op._ior(self.pic, op.WREG, 0)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+        op._ior(self.pic, op.WREG, 0xf)
+        self.assertEqual(self.pic.wreg, 0xf)
+        self.assertEqual(self.pic.status, 0)
+
+        op._ior(self.pic, op.WREG, 0x80)
+        self.assertEqual(self.pic.wreg, 0x8f)
+        self.assertEqual(self.pic.status, op.N)
+
     def testAddlw(self):
         self.pic.wreg = 0x10
         op.addlw(self.pic, 0x15)
@@ -60,7 +73,7 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.data[0], 0x9b)
 
     def testAddwfc(self):
-        self.pic.setStatusBits(op.C)
+        self.pic.affectStatusBits(op.C, op.C)
         self.pic.data[0] = 0x4d
         self.pic.wreg = 0x02
         op.addwfc(self.pic, 0, 0, 1)
@@ -186,10 +199,83 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.status, op.OV | op.N | op.DC)
 
     def testIncfsz(self):
-        pass
-        #self.pic.data[0] = 
+        self.pic.data[0] = 0xfe
+        op.incfsz(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0xff)
+        self.assertEqual(self.pic.pc, 0)
+        op.incfsz(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0xff)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.pc, 2)
+
     def testInfsnz(self):
-        pass
+        self.pic.data[0] = 0xfe
+        op.infsnz(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0xff)
+        self.assertEqual(self.pic.pc, 2)
+        op.infsnz(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0xff)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+    def testIorwf(self):
+        self.pic.data[0] = 0x13
+        self.pic.wreg = 0x91
+        op.iorwf(self.pic, 0, 0, 1)
+        self.assertEqual(self.pic.data[0], 0x13)
+        self.assertEqual(self.pic.wreg, 0x93)
+        self.assertEqual(self.pic.status, op.N)
+
+        self.pic.data[0] = 0
+        self.pic.wreg = 0
+        op.iorwf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+    def testMovf(self):
+        self.pic.wreg = 0xff
+        self.pic.data[0] = 0x22
+        op.movf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.wreg, 0x22)
+        self.assertEqual(self.pic.data[0], 0x22)
+
+        self.pic.data[0] = 0x33
+        op.movf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.wreg, 0x22)
+        self.assertEqual(self.pic.data[0], 0x33)
+
+    def testMovff(self):
+        self.pic.data[0] = 1
+        self.pic.data[1] = 2
+        op.movff(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[1], 1)
+
+        self.assertRaises(AssertionError, op.movff, self.pic, op.PCL, 0)
+        self.assertRaises(AssertionError, op.movff, self.pic, op.TOSL, 0)
+        self.assertRaises(AssertionError, op.movff, self.pic, op.TOSH, 0)
+        self.assertRaises(AssertionError, op.movff, self.pic, op.TOSU, 0)
+
+    def testMovwf(self):
+        self.pic.wreg = 0x4f
+        self.pic.data[0xff] = 0xff
+        op.movwf(self.pic, 0, 0)
+        self.assertEqual(self.pic.wreg, 0x4f)
+        self.assertEqual(self.pic.data[0], 0x4f)
+
+        self.pic.bsr = 1
+        op.movwf(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[0x100], 0x4f)
+
+    def testMulwf(self):
+        self.pic.data[0] = 0xb5
+        self.pic.wreg = 0xc4
+        op.mulwf(self.pic, 0, 1)
+        self.assertEqual(self.pic.wreg, 0xc4)
+        self.assertEqual(self.pic.data[0], 0xb5)
+        self.assertEqual(self.pic.prodl, 0x94)
+        self.assertEqual(self.pic.prodh, 0x8a)
+
 
 if __name__ == '__main__':
     unittest.main()

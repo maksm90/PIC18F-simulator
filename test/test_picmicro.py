@@ -1,3 +1,9 @@
+import os, sys
+
+thisdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(thisdir)
+sys.path.append(parentdir)
+
 import unittest
 from picmicro import DataMemory, PICmicro
 
@@ -42,13 +48,11 @@ class TestPICmicro(unittest.TestCase):
         self.pic.incPC(10)
         self.assertEqual(self.pic.pc, 12)
 
-    def testSetStatus(self):
-        self.pic.setStatusBits(0)
+    def testAffectStatusBits(self):
+        self.pic.affectStatusBits(0, 0b11111)
         self.assertEqual(self.pic.status, 0)
-        self.pic.setStatusBits(0b0101)
-        self.assertEqual(self.pic.status, 0b0101)
-        self.pic.setStatusBits(0b0010)
-        self.assertEqual(self.pic.status, 0b0111)
+        self.pic.affectStatusBits(0b00110, 0b01100)
+        self.assertEqual(self.pic.status, 0b100)
 
 
 if __name__ == '__main__':

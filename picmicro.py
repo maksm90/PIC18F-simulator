@@ -62,6 +62,7 @@ class PICmicro(object):
     WREG = 0x68
     STATUS = 0x58
     BSR = 0x60
+    PRODL, PRODH = 0x73, 0x74
 
     ADDR_MASK = 0x1fffff
     N_SFRs = 0x80
@@ -80,10 +81,13 @@ class PICmicro(object):
         """Increment program counter by delta"""
         self.__pc = (self.__pc + delta) & self.ADDR_MASK
 
-    def setStatusBits(self, bit_mask):
-        self.sfr[self.STATUS] |= bit_mask
-    def resetStatusBits(self, bit_mask):
-        self.sfr[self.STATUS] &= ~bit_mask
+    def affectStatusBits(self, affected_bit_mask, bits):
+        """Affect bits on STATUS
+        affected_bit_mask: bit mask for picking affected bits (0b0-0b11111)
+        bits: result bits
+        """
+        self.sfr[self.STATUS] &= ~affected_bit_mask & 0x1f
+        self.sfr[self.STATUS] |= bits & affected_bit_mask
 
     @property
     def wreg(self):
@@ -96,6 +100,10 @@ class PICmicro(object):
     @property
     def status(self):
         return self.sfr[self.STATUS]
+    @status.setter
+    def status(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.STATUS] = value
 
     @property
     def bsr(self):
@@ -104,3 +112,19 @@ class PICmicro(object):
     def bsr(self, value):
         assert 0 <= value <= 0xff
         self.sfr[self.BSR] = value
+
+    @property
+    def prodl(self):
+        return self.sfr[self.PRODL]
+    @prodl.setter
+    def prodl(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.PRODL] = value
+
+    @property
+    def prodh(self):
+        return self.sfr[self.PRODH]
+    @prodh.setter
+    def prodh(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.PRODH] = value

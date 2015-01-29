@@ -5,7 +5,7 @@ N, OV, Z, DC, C = 0b10000, 0b01000, 0b00100, 0b00010, 0b00001
 
 def _add(pic, addr, value):
     """Internal procedure for addition two byte values and saving result by address 'addr'.
-    This operation affect C, DC, Z, OV, N flags
+    This operation affects C, DC, Z, OV, N flags
     pic: core of PIC18F
     addr: address of first argument and result cell
     value: byte value to be added
@@ -26,12 +26,11 @@ def _add(pic, addr, value):
         set_bits |= N
 
     pic.data[addr] = result & 0xff
-    pic.setStatusBits(set_bits)
-    pic.resetStatusBits(~set_bits & 0x1f)
+    pic.affectStatusBits(0x1f, set_bits)
 
 def _and(pic, addr, value):
     """Internal procedure for doing bitwise conjuction of content of cell by address 'addr' and byte value 'value' and saving result into the cell
-    This operation affect Z and N flags
+    This operation affects Z and N flags
     pic: core of PIC18F
     addr: address of first argument of conjuction
     value: byte value
@@ -43,11 +42,28 @@ def _and(pic, addr, value):
     if result & 0x80 > 0:
         set_bits |= N
     pic.data[addr] = result
-    pic.setStatusBits(set_bits)
-    pic.resetStatusBits(~set_bits & (N | Z))
+    pic.affectStatusBits(N | Z, set_bits)
+
+def _ior(pic, addr, value):
+    """Internal procedure for bitwise disjunction between memory cell by address 'addr' and byte value
+    This operation affects Z and N flags
+    pic: core of PIC18F
+    addr: address of first argument of conjuction
+    value: byte value
+    """
+    result = pic.data[addr] | value
+    set_bits = 0
+    if result == 0:
+        set_bits |= Z
+    if result & 0x80 > 0:
+        set_bits |= N
+    pic.data[addr] = result
+    pic.affectStatusBits(N | Z, set_bits)
 
 # addresses of SFRs
 WREG, BSR = 0xfe8, 0xfe0
+PCL = 0xff9
+TOSU, TOSH, TOSL = 0xfff, 0xffe, 0xffd
 
 ########################################
 # Byte oriented commands with registers
@@ -123,7 +139,7 @@ def clrf(pic, f, a):
     else:
         argAddr = f if f < 0x80 else (0xf00 | f)
     pic.data[argAddr] = 0
-    pic.setStatusBits(Z)
+    pic.affectStatusBits(Z, Z)
 
 clrf.size = 2
 
@@ -148,9 +164,8 @@ def comf(pic, f, d, a):
         set_bits |= Z
     if result & 0x80 > 0:
         set_bits |= N
-    pic.setStatusBits(set_bits)
-    pic.resetStatusBits(~set_bits & (N | Z))
     pic.data[resAddr] = result
+    pic.affectStatusBits(N | Z, set_bits)
 
 comf.size = 2
 
@@ -230,9 +245,8 @@ def decf(pic, f, d, a):
         set_bits |= OV
     if result & 0x80 > 0:
         set_bits |= N
-    pic.setStatusBits(set_bits)
-    pic.resetStatusBits(~set_bits & 0x1f)
     pic.data[resAddr] = result & 0xff
+    pic.affectStatusBits(0x1f, set_bits)
 
 decf.size = 2
 
@@ -306,15 +320,15 @@ def incf(pic, f, d, a):
         set_bits |= OV
     if result & 0x80 > 0:
         set_bits |= N
-    pic.setStatusBits(set_bits)
-    pic.resetStatusBits(~set_bits & 0x1f)
     pic.data[resAddr] = result & 0xff
+    pic.affectStatusBits(0x1f, set_bits)
 
 incf.size = 2
 
 
 def incfsz(pic, f, d, a):
     """Increment 'f'; skip next instruction if result is equal zero
+    pic: core of PIC18F
     f: part of argument register address
     d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
@@ -332,6 +346,107 @@ def incfsz(pic, f, d, a):
 
 incfsz.size = 2
 
+
+def infsnz(pic, f, d, a):
+    """Increment 'f'; skip next instruction if result is not equal zero
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    result = (pic.data[argAddr] + 1) & 0xff
+    if result != 0:
+        pic.incPC(2)
+    pic.data[resAddr] = result
+
+infsnz.size = 2
+
+
+def iorwf(pic, f, d, a):
+    """Logic disjunction between WREG and 'f';
+    Flags Z and N are affected
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+    secondArg = pic.wreg if d == 1 else pic.data[argAddr]
+    _ior(pic, resAddr, secondArg)
+
+iorwf.size = 2
+
+
+def movf(pic, f, d, a):
+    """Move 'f'
+    Flags Z and N are affected
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+    pic.data[resAddr] = pic.data[argAddr]
+
+movf.size = 2
+
+
+def movff(pic, fs, fd):
+    """Move source 'fs' to destination 'fd'
+    pic: core of PIC18F
+    fs: address of source
+    fd: address of destination
+    """
+    assert fs != PCL and fs != TOSU and fs != TOSH and fs != TOSL
+    pic.data[fd] = pic.data[fs]
+
+movff.size = 4
+
+
+def movwf(pic, f, a):
+    """Move WREG to 'f'
+    pic: core of PIC18F
+    f: part of argument register address
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    pic.data[argAddr] = pic.wreg
+
+movwf.size = 2
+
+
+def mulwf(pic, f, a):
+    """Multiply WREG and 'f'
+    pic: core of PIC18F
+    f: part of argument register address
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    result = pic.wreg * pic.data[argAddr]
+    pic.prodl = result & 0xff
+    pic.prodh = (result & 0xff00) >> 8
+
+mulwf.size = 2
 
 
 def addlw(pic, k):
