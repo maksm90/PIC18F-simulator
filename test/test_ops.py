@@ -276,6 +276,85 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.prodl, 0x94)
         self.assertEqual(self.pic.prodh, 0x8a)
 
+    def testNegf(self):
+        self.pic.data[0] = 0x3a
+        op.negf(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[0], 0xc6)
+        self.assertEqual(self.pic.status, op.N)
+
+        op.negf(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[0], 0x3a)
+        self.assertEqual(self.pic.status, 0)
+
+        self.pic.data[0] = 0
+        op.negf(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.status, op.C | op.Z | op.DC)
+
+        self.pic.data[0] = 0x80
+        op.negf(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[0], 0x80)
+        self.assertEqual(self.pic.status, op.DC | op.OV | op.N)
+
+    def testRlcf(self):
+        self.pic.data[0] = 0b11100110
+        op.rlcf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0b11100110)
+        self.assertEqual(self.pic.wreg, 0b11001100)
+        self.assertEqual(self.pic.status, op.C | op.N)
+
+        op.rlcf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b11001101)
+        self.assertEqual(self.pic.wreg, 0b11001100)
+        self.assertEqual(self.pic.status, op.C | op.N)
+
+        self.pic.data[0] = 0x0
+        self.pic.affectStatusBits(op.C, 0)
+        op.rlcf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.wreg, 0b0)
+        self.assertEqual(self.pic.status, op.Z)
+
+    def testRlncf(self):
+        self.pic.data[0] = 0b10101011
+        op.rlncf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b01010111)
+        self.assertEqual(self.pic.status, 0)
+
+        self.pic.data[0] = 0b0
+        op.rlncf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b0)
+        self.assertEqual(self.pic.status, op.Z)
+
+        self.pic.data[0] = 0b01101011
+        op.rlncf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b11010110)
+        self.assertEqual(self.pic.status, op.N)
+
+    def testRrcf(self):
+        self.pic.data[0] = 0b11100110
+        op.rrcf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0b11100110)
+        self.assertEqual(self.pic.wreg, 0b01110011)
+        self.assertEqual(self.pic.status, 0)
+
+        self.pic.data[0] = self.pic.wreg
+        op.rrcf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b00111001)
+        self.assertEqual(self.pic.status, op.C)
+
+        op.rrcf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b10011100)
+        self.assertEqual(self.pic.status, op.N | op.C)
+
+        self.pic.data[0] = 0
+        self.pic.affectStatusBits(op.C, 0)
+        op.rrcf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b0)
+        self.assertEqual(self.pic.status, op.Z)
+
+    def testRrncf(self):
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()

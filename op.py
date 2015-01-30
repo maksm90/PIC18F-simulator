@@ -449,6 +449,147 @@ def mulwf(pic, f, a):
 mulwf.size = 2
 
 
+def negf(pic, f, a):
+    """Negative value of 'f'
+    Flags C, DC, Z, OV, N are affected
+    pic: core of PIC18F
+    f: part of argument register address
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+
+    result = (~pic.data[argAddr] + 1) & 0xff
+    set_bits = 0
+    if result & 0x80 > 0:
+        set_bits |= N
+    if result == 0:
+        set_bits |= (C | Z)
+    if result & 0xf == 0:
+        set_bits |= DC
+    if result == 0x80:
+        set_bits |= OV
+    pic.data[argAddr] = result
+    pic.affectStatusBits(0x1f, set_bits)
+
+negf.size = 2
+
+
+def rlcf(pic, f, d, a):
+    """Left shift with carry
+    Flags C, Z, N are affects
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    result = pic.data[argAddr] << 1
+    result |= pic.status & C
+    set_bits = (result & 0x100) >> 8
+    if result & 0xff == 0:
+        set_bits |= Z
+    if result & 0x80 > 0:
+        set_bits |= N
+
+    pic.data[resAddr] = result & 0xff
+    pic.affectStatusBits(C | Z | N, set_bits)
+
+rlcf.size = 2
+
+
+def rlncf(pic, f, d, a):
+    """Left shift without carry
+    Flags Z, N are affects
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    result = pic.data[argAddr] << 1
+    result |= (result >> 8)
+    set_bits = 0
+    if result & 0xff == 0:
+        set_bits |= Z
+    if result & 0x80 > 0:
+        set_bits |= N
+
+    pic.data[resAddr] = result & 0xff
+    pic.affectStatusBits(Z | N, set_bits)
+
+rlncf.size = 2
+
+
+def rrcf(pic, f, d, a):
+    """Right shift with carry
+    Flags C, Z, N are affects
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    arg = pic.data[argAddr]
+    set_bits = arg & 0x1
+    result = (arg >> 1) | ((pic.status & C) << 7)
+    if result & 0xff == 0:
+        set_bits |= Z
+    if result & 0x80 > 0:
+        set_bits |= N
+
+    pic.data[resAddr] = result
+    pic.affectStatusBits(C | Z | N, set_bits)
+
+rrcf.size = 2
+
+
+def rrncf(pic, f, d, a):
+    """Right shift without carry
+    Flags Z, N are affects
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    arg = pic.data[argAddr]
+    arg |= ((arg & 0x1) << 8)
+    result = arg >> 1
+    set_bits = 0
+    if result & 0xff == 0:
+        set_bits |= Z
+    if result & 0x80 > 0:
+        set_bits |= N
+
+    pic.data[resAddr] = result
+    pic.affectStatusBits(Z | N, set_bits)
+
+rrncf.size = 2
+
+
 def addlw(pic, k):
     """Add WREG with constant 'k'
     affect C, DC, Z, OV, N
