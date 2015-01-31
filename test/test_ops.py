@@ -353,8 +353,68 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.status, op.Z)
 
     def testRrncf(self):
-        pass
+        self.pic.data[0] = 0b11010111
+        op.rrncf(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0b11101011)
+        self.assertEqual(self.pic.status, op.N)
 
+        self.pic.data[0] = 0b11010111
+        op.rrncf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0b11010111)
+        self.assertEqual(self.pic.wreg, 0b11101011)
+        self.assertEqual(self.pic.status, op.N)
+
+        self.pic.data[0] = 0b0
+        op.rrncf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0b0)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+        self.pic.data[0] = 0b10
+        op.rrncf(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 0b10)
+        self.assertEqual(self.pic.wreg, 1)
+        self.assertEqual(self.pic.status, 0)
+
+    def testSetf(self):
+        self.pic.data[0] = 0x5a
+        op.setf(self.pic, 0, 1)
+        self.assertEqual(self.pic.data[0], 0xff)
+
+    def testSubfwb(self):
+        self.pic.data[0] = 3
+        self.pic.wreg = 2
+        self.pic.affectStatusBits(op.C, 1)
+        op.subfwb(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0xff)
+        self.assertEqual(self.pic.wreg, 2)
+        self.assertEqual(self.pic.status, op.N)
+
+        self.pic.data[0] = 2
+        self.pic.wreg = 5
+        self.pic.affectStatusBits(op.C, 1)
+        op.subfwb(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.data[0], 2)
+        self.assertEqual(self.pic.wreg, 3)
+        self.assertEqual(self.pic.status, op.C | op.DC)
+
+        self.pic.data[0] = 1
+        self.pic.wreg = 2
+        self.pic.affectStatusBits(op.C, 0)
+        op.subfwb(self.pic, 0, 1, 0)
+        self.assertEqual(self.pic.data[0], 0)
+        self.assertEqual(self.pic.wreg, 2)
+        self.assertEqual(self.pic.status, op.C | op.DC | op.Z)
+
+        self.pic.data[0] = 0xef
+        self.pic.wreg = 0x70
+        self.pic.affectStatusBits(op.C, 0)
+        op.subfwb(self.pic, 0, 0, 0)
+        self.assertEqual(self.pic.wreg, 0x80)
+        self.assertEqual(self.pic.status, op.OV | op.DC | op.N | op.C)
+
+    def testSubwf(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
