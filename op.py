@@ -872,7 +872,8 @@ def btg(pic, f, b, a):
         argAddr = (pic.bsr << 8) | f
     else:
         argAddr = f if f < 0x80 else (0xf00 | f)
-    pass
+    arg = pic.data[argAddr]
+    pic.data[argAddr] = (arg | (1 << b)) & ~(arg & (1 << b))
 
 btg.size = 2
 

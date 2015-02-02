@@ -522,14 +522,22 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.pc, 2)
 
         self.pic.data[0] = 0x67
-        op.bsf(self.pic, 0, 5, 0)
+        op.btfsc(self.pic, 0, 5, 0)
         self.assertEqual(self.pic.pc, 2)
 
     def testBtfss(self):
-        pass
+        self.pic.data[0] = 0x7a
+        op.btfss(self.pic, 0, 7, 0)
+        self.assertEqual(self.pic.pc, 0)
+
+        self.pic.data[0] = 0x67
+        op.btfss(self.pic, 0, 5, 0)
+        self.assertEqual(self.pic.pc, 2)
 
     def testBtg(self):
-        pass
+        self.pic.data[0] = 0x75
+        op.btg(self.pic, 0, 4, 0)
+        self.assertEqual(self.pic.data[0], 0x65)
 
     def testBc(self):
         pass
