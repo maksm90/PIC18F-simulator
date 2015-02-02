@@ -790,6 +790,107 @@ def xorwf(pic, f, d, a):
 xorwf.size = 2
 
 
+##################################################
+# Bit oriented operations with registries
+##################################################
+def bcf(pic, f, b, a):
+    """Reset bit in 'f'
+    pic: core of PIC18F
+    f: part of argument register address
+    b: number of bit to be reset
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    pic.data[argAddr] &= ~(1 << b)
+
+bcf.size = 2
+
+
+def bsf(pic, f, b, a):
+    """Set bit in 'f'
+    pic: core of PIC18F
+    f: part of argument register address
+    b: number of bit to be set
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    pic.data[argAddr] |= (1 << b)
+
+bsf.size = 2
+
+
+def btfsc(pic, f, b, a):
+    """Test bit; skip next instruction if it's equal '0'
+    pic: core of PIC18F
+    f: part of argument register address
+    b: number of bit for testing
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    bit = (pic.data[argAddr] >> b) & 0x01
+    if bit == 0:
+        pic.incPC(2)
+
+btfsc.size = 2
+
+
+def btfss(pic, f, b, a):
+    """Test bit; skip next instruction if it's equal '1'
+    pic: core of PIC18F
+    f: part of argument register address
+    b: number of bit for testing
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    bit = (pic.data[argAddr] >> b) & 0x01
+    if bit == 1:
+        pic.incPC(2)
+
+btfss.size = 2
+
+
+def btg(pic, f, b, a):
+    """Inverse bit in 'f'
+    pic: core of PIC18F
+    f: part of argument register address
+    b: number of bit for testing
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    pass
+
+btg.size = 2
+
+
+#############################################
+# Control instructions
+#############################################
+def bc(pic, n):
+    """Branch if carry
+    pic: core of PIC18F
+    n: ...
+    """
+    pass
+
+
+############################################
+# Operations with constants
+############################################
 def addlw(pic, k):
     """Add WREG with constant 'k'
     affect C, DC, Z, OV, N
@@ -799,3 +900,8 @@ def addlw(pic, k):
     _add(pic, WREG, k)
 
 addlw.size = 2
+
+
+#############################################
+# Operations: data memory <-> program memory
+#############################################

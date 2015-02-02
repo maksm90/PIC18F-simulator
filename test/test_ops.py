@@ -497,6 +497,44 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.data[0], 0x1a)
         self.assertEqual(self.pic.status, op.N)
 
+    def testBcf(self):
+        self.pic.data[0] = 0xc7
+        op.bcf(self.pic, 0, 7, 0)
+        self.assertEqual(self.pic.data[0], 0x47)
+
+        self.pic.data[0x100] = 0xf7
+        self.pic.bsr = 1
+        op.bcf(self.pic, 0, 5, 1)
+        self.assertEqual(self.pic.data[0x100], 0xd7)
+
+    def testBsf(self):
+        self.pic.data[0] = 0x0a
+        op.bsf(self.pic, 0, 7, 1)
+        self.assertEqual(self.pic.data[0], 0x8a)
+
+        self.pic.data[0] = 0x07
+        op.bsf(self.pic, 0, 5, 0)
+        self.assertEqual(self.pic.data[0], 0x27)
+
+    def testBtfsc(self):
+        self.pic.data[0] = 0x7a
+        op.btfsc(self.pic, 0, 7, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+        self.pic.data[0] = 0x67
+        op.bsf(self.pic, 0, 5, 0)
+        self.assertEqual(self.pic.pc, 2)
+
+    def testBtfss(self):
+        pass
+
+    def testBtg(self):
+        pass
+
+    def testBc(self):
+        pass
+
+
 
 if __name__ == '__main__':
     unittest.main()
