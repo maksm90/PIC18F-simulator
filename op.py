@@ -884,11 +884,110 @@ btg.size = 2
 def bc(pic, n):
     """Branch if carry
     pic: core of PIC18F
-    n: ...
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & C) > 0:
+        pic.incPC(2*n)
+
+bc.size = 2
+
+
+def bn(pic, n):
+    """Branch if negative result
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & N) > 0:
+        pic.incPC(2*n)
+
+bn.size = 2
+
+
+def bnc(pic, n):
+    """Branch if not carry
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & C) == 0:
+        pic.incPC(2*n)
+
+bnc.size = 2
+
+
+def bnn(pic, n):
+    """Branch if not negative result
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & N) == 0:
+        pic.incPC(2*n)
+
+bnn.size = 2
+
+
+def bnov(pic, n):
+    """Branch if not overflow
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & OV) == 0:
+        pic.incPC(2*n)
+
+bnov.size = 2
+
+
+def bnz(pic, n):
+    """Branch if not zero
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & Z) == 0:
+        pic.incPC(2*n)
+
+bnz.size = 2
+
+
+def bov(pic, n):
+    """Branch if overflow
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & OV) > 0:
+        pic.incPC(2*n)
+
+bov.size = 2
+
+
+def bra(pic, n):
+    """Unconditional branch
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    pic.incPC(2*n)
+
+bra.size = 2
+
+
+def bz(pic, n):
+    """Branch if zero
+    pic: core of PIC18F
+    n: number of jumps (instructions in both directions)
+    """
+    if (pic.status & Z) > 0:
+        pic.incPC(2*n)
+
+bz.size = 2
+
+
+def call(pic, n, s):
+    """Goto subroutine in all range of memory:
+        * return address (PC + 4) is saved in stack
+        * if s = 1 then WREG, STATUS, BSR is saved in fast access registers
+        * PC<20:1> is uploaded into the stack
     """
     pass
 
-
+call.size = 4
 ############################################
 # Operations with constants
 ############################################

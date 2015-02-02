@@ -540,8 +540,76 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.data[0], 0x65)
 
     def testBc(self):
-        pass
+        op.bc(self.pic, 5)
+        self.assertEqual(self.pic.pc, 0)
 
+        self.pic.affectStatusBits(op.C, 1)
+        op.bc(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBn(self):
+        op.bn(self.pic, 5)
+        self.assertEqual(self.pic.pc, 0)
+
+        self.pic.affectStatusBits(op.N, op.N)
+        op.bn(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBnc(self):
+        op.bnc(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+        self.pic.affectStatusBits(op.C, 1)
+        op.bnc(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBnn(self):
+        op.bnn(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+        self.pic.affectStatusBits(op.N, op.N)
+        op.bnn(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBnov(self):
+        op.bnov(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+        self.pic.affectStatusBits(op.OV, op.OV)
+        op.bnov(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBnz(self):
+        op.bnz(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+        self.pic.affectStatusBits(op.Z, op.Z)
+        op.bnz(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBov(self):
+        op.bov(self.pic, 5)
+        self.assertEqual(self.pic.pc, 0)
+
+        self.pic.affectStatusBits(op.OV, op.OV)
+        op.bov(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBra(self):
+        op.bra(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    def testBz(self):
+        op.bz(self.pic, 5)
+        self.assertEqual(self.pic.pc, 0)
+
+        self.pic.affectStatusBits(op.Z, op.Z)
+        op.bz(self.pic, 5)
+        self.assertEqual(self.pic.pc, 10)
+
+    @unittest.skip("opertion is not realized yet")
+    def testCall(self):
+        self.assertTrue(False)
 
 
 if __name__ == '__main__':
