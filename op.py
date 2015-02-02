@@ -60,6 +60,22 @@ def _ior(pic, addr, value):
     pic.data[addr] = result
     pic.affectStatusBits(N | Z, set_bits)
 
+def _xor(pic, addr, value):
+    """Internal procedure for exclusive disjunction between memory cell and byte and for saving result in memory cell
+    This operation affects Z and N flags
+    pic: core of PIC18F
+    addr: address of first argument of execlusive conjuction and result
+    value: byte value - the second argument
+    """
+    result = pic.data[addr] ^ value
+    set_bits = 0
+    if result == 0:
+        set_bits |= Z
+    if result & 0x80 > 0:
+        set_bits |= N
+    pic.data[addr] = result
+    pic.affectStatusBits(N | Z, set_bits)
+
 # addresses of SFRs
 WREG, BSR = 0xfe8, 0xfe0
 PCL = 0xff9
@@ -641,6 +657,137 @@ def subfwb(pic, f, d, a):
     pic.affectStatusBits(0x1f, set_bits)
 
 subfwb.size = 2
+
+
+def subwf(pic, f, d, a):
+    """Substitute WREG from 'f'
+    Flags Z, N, OV, DC, C are affects
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    arg1, arg2 = pic.data[argAddr], (~pic.wreg + 1) & 0xff
+    result = arg1 + arg2
+
+    set_bits = 0
+    if result & 0x100 > 0:
+        set_bits |= C
+    if ((arg1 & 0xf) + (arg2 & 0xf)) & 0x10 > 0:
+        set_bits |= DC
+    if result & 0xff == 0:
+        set_bits |= Z
+    if (arg1 & 0x80 == arg2 & 0x80) and (arg1 & 0x80 != result & 0x80):
+        set_bits |= OV
+    if result & 0x80 > 0:
+        set_bits |= N
+
+    pic.data[resAddr] = result & 0xff
+    pic.affectStatusBits(0x1f, set_bits)
+
+subwf.size = 2
+
+
+def subwfb(pic, f, d, a):
+    """Substitute WREG from 'f' with borrow
+    Flags Z, N, OV, DC, C are affects
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    arg1 = pic.data[argAddr]
+    arg2 = (-pic.wreg) & 0xff
+    arg3 = 0 if (pic.status & C == 1) else 0xff
+    result = arg1 + arg2 + arg3
+
+    set_bits = 0
+    if result & 0xf00 > 0:
+        set_bits |= C
+    if ((arg1 & 0xf) + (arg2 & 0xf) + (arg3 & 0xf)) & 0xf0 > 0:
+        set_bits |= DC
+    if result & 0xff == 0:
+        set_bits |= Z
+    carryIntoSign = ((arg1 & 0x7f) + (arg2 & 0x7f) + (arg3 & 0x7f)) & 0x80
+    if ((result & 0x100) ^ (carryIntoSign << 1)) > 0:
+        set_bits |= OV
+    if result & 0x80 > 0:
+        set_bits |= N
+
+    pic.data[resAddr] = result & 0xff
+    pic.affectStatusBits(0x1f, set_bits)
+
+subwfb.size = 2
+
+
+def swapf(pic, f, d, a):
+    """Exchange nibbles in 'f'
+    pic: core of PIC18F
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    resAddr = WREG if d == 0 else argAddr
+
+    arg = pic.data[argAddr]
+    nibble1, nibble2 = arg & 0xf, (arg & 0xf0) >> 4
+    pic.data[resAddr] = (nibble1 << 4) | nibble2
+
+swapf.size = 2
+
+
+def tstfsz(pic, f, a):
+    """Test 'f', skip next instruction if it's equal 0
+    pic: core of PIC18F
+    f: part of argument register address
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    if pic.data[argAddr] == 0:
+        pic.incPC(2)
+
+tstfsz.size = 2
+
+
+def xorwf(pic, f, d, a):
+    """Logical exclusive OR between WREG and 'f'
+    Flags Z and N are affected
+    f: part of argument register address
+    d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
+    a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
+    """
+    if a == 1:
+        argAddr = (pic.bsr << 8) | f
+    else:
+        argAddr = f if f < 0x80 else (0xf00 | f)
+    if d == 1:
+        resAddr = argAddr
+        arg = pic.wreg
+    else:
+        resAddr = WREG
+        arg = pic.data[argAddr]
+    _xor(pic, resAddr, arg)
+
+xorwf.size = 2
 
 
 def addlw(pic, k):
