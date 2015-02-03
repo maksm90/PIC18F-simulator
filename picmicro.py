@@ -63,6 +63,7 @@ class PICmicro(object):
     STATUS = 0x58
     BSR = 0x60
     PRODL, PRODH = 0x73, 0x74
+    FSR0L, FSR0H, FSR1L, FSR1H, FSR2L, FSR2H = 0x69, 0x6a, 0x61, 0x62, 0x59, 0x5a
 
     ADDR_MASK = 0x1fffff
     N_SFRs = 0x80
@@ -128,3 +129,51 @@ class PICmicro(object):
     def prodh(self, value):
         assert 0 <= value <= 0xff
         self.sfr[self.PRODH] = value
+
+    @property
+    def fsr0l(self):
+        return self.sfr[self.FSR0L]
+    @fsr0l.setter
+    def fsr0l(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.FSR0L] = value
+
+    @property
+    def fsr0h(self):
+        return self.sfr[self.FSR0H]
+    @fsr0h.setter
+    def fsr0h(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.FSR0H] = value
+
+    @property
+    def fsr1l(self):
+        return self.sfr[self.FSR1L]
+    @fsr1l.setter
+    def fsr1l(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.FSR1L] = value
+
+    @property
+    def fsr1h(self):
+        return self.sfr[self.FSR1H]
+    @fsr1h.setter
+    def fsr1h(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.FSR1H] = value
+ 
+    @property
+    def fsr2l(self):
+        return self.sfr[self.FSR2L]
+    @fsr2l.setter
+    def fsr2l(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.FSR2L] = value
+ 
+    @property
+    def fsr2h(self):
+        return self.sfr[self.FSR2H]
+    @fsr2h.setter
+    def fsr2h(self, value):
+        assert 0 <= value <= 0xff
+        self.sfr[self.FSR2H] = value

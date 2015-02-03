@@ -647,5 +647,98 @@ class TestAllOps(unittest.TestCase):
     def testReturn(self):
         pass
 
+    def testAnd(self):
+        self.pic.wreg = 0xa3
+        op.andlw(self.pic, 0x5f)
+        self.assertEqual(self.pic.wreg, 0x03)
+        self.assertEqual(self.pic.status, 0)
+
+        op.andlw(self.pic, 0)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+        self.pic.wreg = 0xa3
+        op.andlw(self.pic, 0x80)
+        self.assertEqual(self.pic.wreg, 0x80)
+        self.assertEqual(self.pic.status, op.N)
+
+    def testIorlw(self):
+        self.pic.wreg = 0x9a
+        op.iorlw(self.pic, 0x35)
+        self.assertEqual(self.pic.wreg, 0xbf)
+        self.assertEqual(self.pic.status, op.N)
+
+        self.pic.wreg = 0
+        op.iorlw(self.pic, 0)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+        op.iorlw(self.pic, 0x1f)
+        self.assertEqual(self.pic.wreg, 0x1f)
+        self.assertEqual(self.pic.status, 0)
+
+    def testLfsr(self):
+        op.lfsr(self.pic, 2, 0x3ab)
+        self.assertEqual(self.pic.fsr2l, 0xab)
+        self.assertEqual(self.pic.fsr2h, 0x03)
+
+        op.lfsr(self.pic, 1, 0x3ab)
+        self.assertEqual(self.pic.fsr1l, 0xab)
+        self.assertEqual(self.pic.fsr1h, 0x03)
+
+        op.lfsr(self.pic, 0, 0x3ab)
+        self.assertEqual(self.pic.fsr0l, 0xab)
+        self.assertEqual(self.pic.fsr0h, 0x03)
+
+    def testMovlb(self):
+        self.pic.bsr = 0x02
+        op.movlb(self.pic, 5)
+        self.assertEqual(self.pic.bsr, 0x05)
+
+    def testMovlw(self):
+        op.movlw(self.pic, 0x5a)
+        self.assertEqual(self.pic.wreg, 0x5a)
+
+    def testMullw(self):
+        self.pic.wreg = 0xe2
+        op.mullw(self.pic, 0xc4)
+        self.assertEqual(self.pic.wreg, 0xe2)
+        self.assertEqual(self.pic.prodl, 0x08)
+        self.assertEqual(self.pic.prodh, 0xad)
+
+    @unittest.skip("opertion is not realized yet")
+    def testRetlw(self):
+        pass
+
+    def testSublw(self):
+        self.pic.wreg = 1
+        op.sublw(self.pic, 0x02)
+        self.assertEqual(self.pic.wreg, 1)
+        self.assertEqual(self.pic.status, op.C | op.DC)
+
+        self.pic.wreg = 2
+        op.sublw(self.pic, 0x02)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.C | op.Z | op.DC)
+
+        self.pic.wreg = 3
+        op.sublw(self.pic, 0x02)
+        self.assertEqual(self.pic.wreg, 0xff)
+        self.assertEqual(self.pic.status, op.N)
+
+    def testXorlw(self):
+        self.pic.wreg = 0xb5
+        op.xorlw(self.pic, 0xaf)
+        self.assertEqual(self.pic.wreg, 0x1a)
+        self.assertEqual(self.pic.status, 0)
+
+        op.xorlw(self.pic, 0x8f)
+        self.assertEqual(self.pic.wreg, 0x95)
+        self.assertEqual(self.pic.status, op.N)
+
+        op.xorlw(self.pic, 0x95)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.Z)
+
 if __name__ == '__main__':
     unittest.main()

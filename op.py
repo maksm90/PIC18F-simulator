@@ -1051,8 +1051,100 @@ def addlw(pic, k):
 
 addlw.size = 2
 
-#def 
+def andlw(pic, k):
+    """Logical conjunction WREG with constant 'k'
+    affect Z and N
+    pic: core of PIC18F
+    k: constant value
+    """
+    _and(pic, WREG, k)
 
+def iorlw(pic, k):
+    """Logical disjunction WREG with constant 'k'
+    affect Z and N
+    pic: core of PIC18F
+    k: constant value
+    """
+    _ior(pic, WREG, k)
+
+def lfsr(pic, f, k):
+    """Put constant value (12 bit) to FSR (2 words)
+    pic: core of PIC18F
+    f: number of FSR register (0-3)
+    k: constant value (12 bit)
+    """
+    if f == 0:
+        pic.fsr0l = k & 0xff
+        pic.fsr0h = (k & 0x0f00) >> 8
+    elif f == 1:
+        pic.fsr1l = k & 0xff
+        pic.fsr1h = (k & 0x0f00) >> 8
+    elif f == 2:
+        pic.fsr2l = k & 0xff
+        pic.fsr2h = (k & 0x0f00) >> 8
+
+def movlb(pic, k):
+    """Move constant value to BSR<3:0>
+    pic: core of PIC18F
+    k: constant value (0-0x0f)
+    """
+    pic.bsr = k
+
+def movlw(pic, k):
+    """Move constant to WREG
+    pic: core of PIC18F
+    k: constant value
+    """
+    pic.wreg = k
+
+def mullw(pic, k):
+    """Multiplication constant value with WREG
+    pic: core of PIC18F
+    k: constant value
+    """
+    result = pic.wreg * k
+    pic.prodl = result & 0xff
+    pic.prodh = (result & 0xff00) >> 8
+
+def retlw(pic, k):
+    """Return from subroutine with loading WREG
+    pic: core of PIC18F
+    k: constant value
+    """
+    pass
+
+def sublw(pic, k):
+    """Substitute WREG from constant value
+    affect C, DC, Z, OV, N flags
+    pic: core of PIC18F
+    k: constant value
+    """
+    arg = (~pic.wreg + 1) & 0xff
+    result = k + arg
+
+    set_bits = 0
+    if result & 0x100 > 0:
+        set_bits |= C
+    if ((k & 0xf) + (arg & 0xf)) & 0x10 > 0:
+        set_bits |= DC
+    if result & 0xff == 0:
+        set_bits |= Z
+    if (k & 0x80 == arg & 0x80) and (arg & 0x80 != result & 0x80):
+        set_bits |= OV
+    if result & 0x80 > 0:
+        set_bits |= N
+
+    pic.wreg = result & 0xff
+    pic.affectStatusBits(0x1f, set_bits)
+
+def xorlw(pic, k):
+    """Logical exclusive dijunction between constant and WREG
+    affect Z and N flags
+    pic: core of PIC18F
+    k: constant value
+    """
+    _xor(pic, WREG, k)
+    
 #############################################
 # Operations: data memory <-> program memory
 #############################################
