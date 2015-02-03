@@ -611,6 +611,41 @@ class TestAllOps(unittest.TestCase):
     def testCall(self):
         self.assertTrue(False)
 
+    @unittest.skip("opertion is not realized yet")
+    def testDaw(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testGoto(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testPop(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testPush(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testRcall(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testReset(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testRetfie(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testRetlw(self):
+        pass
+
+    @unittest.skip("opertion is not realized yet")
+    def testReturn(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

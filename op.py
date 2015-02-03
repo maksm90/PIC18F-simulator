@@ -988,6 +988,56 @@ def call(pic, n, s):
     pass
 
 call.size = 4
+
+
+def clrwdt(pic):
+    """Reset watcdog"""
+    pass
+
+def daw(pic):
+    """Decimal correction of WREG"""
+    pass
+
+def goto(pic, n):
+    """Goto to address"""
+    pass
+
+def nop(pic):
+    """No operation"""
+    pass
+
+def pop(pic):
+    """Read the top of stack TOS"""
+    pass
+
+def push(pic):
+    """Record into the top of stack TOS"""
+    pass
+
+def rcall(pic, n):
+    """Short branch to subroutine"""
+    pass
+
+def reset(pic):
+    """Program reset"""
+    pass
+
+def retfie(pic, s):
+    """Return from subroutine with permit of interruption"""
+    pass
+
+def retlw(pic, k):
+    """Return from subroutine with loading of WREG"""
+    pass
+
+def return_(pic, s):
+    """Return from subroutine"""
+    pass
+
+def sleep(pic):
+    """Goto sleep mode"""
+    pass
+
 ############################################
 # Operations with constants
 ############################################
@@ -1001,6 +1051,7 @@ def addlw(pic, k):
 
 addlw.size = 2
 
+#def 
 
 #############################################
 # Operations: data memory <-> program memory
