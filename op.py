@@ -1148,3 +1148,35 @@ def xorlw(pic, k):
 #############################################
 # Operations: data memory <-> program memory
 #############################################
+
+def tblrd_ask(pic):
+    """Table read"""
+    pass
+
+def tblrd_ask_plus(pic):
+    """Table read with post-increment"""
+    pass
+
+def tblrd_ask_minus(pic):
+    """Table read with post-decrement"""
+    pass
+
+def tblrd_plus_ask(pic):
+    """Table read with pred-increment"""
+    pass
+
+def tblwt_ask(pic):
+    """Table write"""
+    pass
+
+def tblwt_ask_plus(pic):
+    """Table write with post-increment"""
+    pass
+
+def tblwt_ask_minus(pic):
+    """Table write with post-decrement"""
+    pass
+
+def tblwt_plus_ask(pic):
+    """Table write with pred-increment"""
+    pass

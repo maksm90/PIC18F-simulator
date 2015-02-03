@@ -740,5 +740,33 @@ class TestAllOps(unittest.TestCase):
         self.assertEqual(self.pic.wreg, 0)
         self.assertEqual(self.pic.status, op.Z)
 
+    @unittest.skip("function is not realized yet")
+    def testTblrdAsk(self):
+        pass
+
+    @unittest.skip("function is not realized yet")
+    def testTblrdAskPlus(self):
+        pass
+
+    @unittest.skip("function is not realized yet")
+    def testTblrdPlusAsk(self):
+        pass
+
+    @unittest.skip("function is not realized yet")
+    def testTblwtAsk(self):
+        pass
+
+    @unittest.skip("function is not realized yet")
+    def testTblwtAskPlus(self):
+        pass
+
+    @unittest.skip("function is not realized yet")
+    def testTblwtAskMinus(self):
+        pass
+
+    @unittest.skip("function is not realized yet")
+    def testTblwtPlusAsk(self):
+        pass
+
 if __name__ == '__main__':
     unittest.main()
