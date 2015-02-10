@@ -3,77 +3,79 @@ import picmicro
 # bitmasks of flags
 N, OV, Z, DC, C = 0b10000, 0b01000, 0b00100, 0b00010, 0b00001
 
-def _add(pic, addr, value):
-    """Internal procedure for addition two byte values and saving result by address 'addr'.
+def _add(pic, resAddr, arg1, arg2):
+    """Internal procedure that performs addition 'arg1' and 'arg2' and saving result by address 'resAddr'
     This operation affects C, DC, Z, OV, N flags
     pic: core of PIC18F
-    addr: address of first argument and result cell
-    value: byte value to be added
+    resAddr: address of saving result
+    arg1: first argument of operation
+    arg2: second argument of operation
     """
-    arg1, arg2 = pic.data[addr], value
     result = arg1 + arg2
 
-    set_bits = 0
-    if result & 0x100 > 0:
-        set_bits |= C
-    if ((arg1 & 0xf) + (arg2 & 0xf)) & 0x10 > 0:
-        set_bits |= DC
+    carry = (result & 0x100) >> 8
+    set_bits = carry
+    decCarry = (((arg1 & 0xf) + (arg2 & 0xf)) & 0x10) >> 4
+    set_bits |= decCarry << 1
     if result & 0xff == 0:
         set_bits |= Z
-    if (arg1 & 0x80 == arg2 & 0x80) and (arg1 & 0x80 != result & 0x80):
-        set_bits |= OV
-    if result & 0x80 > 0:
-        set_bits |= N
+    signCarry = (((arg1 & 0x7f) + (arg2 & 0x7f)) & 0x80) >> 7
+    set_bits |= (signCarry ^ carry) << 3
+    sign = (result & 0x80) >> 7
+    set_bits |= sign << 4
 
-    pic.data[addr] = result & 0xff
+    pic.data[resAddr] = result & 0xff
     pic.affectStatusBits(0x1f, set_bits)
 
-def _and(pic, addr, value):
-    """Internal procedure for doing bitwise conjuction of content of cell by address 'addr' and byte value 'value' and saving result into the cell
+def _and(pic, resAddr, arg1, arg2):
+    """Internal procedure that performs bitwise conjuction 'arg1' with 'arg2' and saving result by address 'resAddr'
     This operation affects Z and N flags
     pic: core of PIC18F
-    addr: address of first argument of conjuction
-    value: byte value
+    resAddr: address of result
+    arg1: first argument of operation
+    arg2: second argument of operation
     """
-    result = pic.data[addr] & value
+    result = arg1 & arg2
     set_bits = 0
     if result == 0:
         set_bits |= Z
     if result & 0x80 > 0:
         set_bits |= N
-    pic.data[addr] = result
+    pic.data[resAddr] = result
     pic.affectStatusBits(N | Z, set_bits)
 
-def _ior(pic, addr, value):
-    """Internal procedure for bitwise disjunction between memory cell by address 'addr' and byte value
+def _ior(pic, resAddr, arg1, arg2):
+    """Internal procedure for bitwise disjunction between 'arg1' and 'arg2' and saving result by address 'resAddr'
     This operation affects Z and N flags
     pic: core of PIC18F
-    addr: address of first argument of conjuction
-    value: byte value
+    resAddr: address for result
+    arg1: first argument
+    arg2: second argument
     """
-    result = pic.data[addr] | value
+    result = arg1 | arg2
     set_bits = 0
     if result == 0:
         set_bits |= Z
     if result & 0x80 > 0:
         set_bits |= N
-    pic.data[addr] = result
+    pic.data[resAddr] = result
     pic.affectStatusBits(N | Z, set_bits)
 
-def _xor(pic, addr, value):
-    """Internal procedure for exclusive disjunction between memory cell and byte and for saving result in memory cell
+def _xor(pic, resAddr, arg1, arg2):
+    """Internal procedure for exclusive disjunction between 'arg1' and 'arg2' and saving result in memory cell by address 'resAddr'
     This operation affects Z and N flags
     pic: core of PIC18F
-    addr: address of first argument of execlusive conjuction and result
-    value: byte value - the second argument
+    resAddr: address for result
+    arg1: first argument
+    arg2: second argument
     """
-    result = pic.data[addr] ^ value
+    result = arg1 ^ arg2
     set_bits = 0
     if result == 0:
         set_bits |= Z
     if result & 0x80 > 0:
         set_bits |= N
-    pic.data[addr] = result
+    pic.data[resAddr] = result
     pic.affectStatusBits(N | Z, set_bits)
 
 # addresses of SFRs
@@ -97,8 +99,7 @@ def addwf(pic, f, d, a):
     else:
         argAddr = f if f < 0x80 else (0xf00 | f)
     resAddr = argAddr if d == 1 else WREG
-    secondArg = pic.wreg if d == 1 else pic.data[argAddr]
-    _add(pic, resAddr, secondArg)
+    _add(pic, resAddr, pic.wreg, pic.data[argAddr])
 
 addwf.size = 2
 
@@ -116,10 +117,23 @@ def addwfc(pic, f, d, a):
     else:
         argAddr = f if f < 0x80 else (0xf00 | f)
     carryFlag = pic.status & C
+    arg1, arg2 = pic.wreg, pic.data[argAddr]
+    result = arg1 + arg2 + carryFlag
+
+    carry = (result & 0x100) >> 8
+    set_bits = carry
+    decCarry = (((arg1 & 0xf) + (arg2 & 0xf) + carryFlag) & 0x10) >> 4
+    set_bits |= decCarry << 1
+    if result & 0xff == 0:
+        set_bits |= Z
+    signCarry = (((arg1 & 0x7f) + (arg2 & 0x7f) + carryFlag) & 0x80) >> 7
+    set_bits |= (signCarry ^ carry) << 3
+    sign = (result & 0x80) >> 7
+    set_bits |= sign << 4
+
     resAddr = WREG if d == 0 else argAddr
-    secondArg = pic.wreg if d == 1 else pic.data[argAddr]
-    _add(pic, resAddr, secondArg)
-    _add(pic, resAddr, carryFlag)
+    pic.data[resAddr] = result & 0xff
+    pic.affectStatusBits(0x1f, set_bits)
  
 addwfc.size = 2
 
@@ -137,8 +151,7 @@ def andwf(pic, f, d, a):
     else:
         argAddr = f if f < 0x80 else (0xf00 | f)
     resAddr = WREG if d == 0 else argAddr
-    secondArg = pic.wreg if d == 1 else pic.data[argAddr]
-    _and(pic, resAddr, secondArg) 
+    _and(pic, resAddr, pic.wreg, pic.data[argAddr]) 
     
 andwf.size = 2
 
@@ -397,8 +410,7 @@ def iorwf(pic, f, d, a):
     else:
         argAddr = f if f < 0x80 else (0xf00 | f)
     resAddr = WREG if d == 0 else argAddr
-    secondArg = pic.wreg if d == 1 else pic.data[argAddr]
-    _ior(pic, resAddr, secondArg)
+    _ior(pic, resAddr, pic.wreg, pic.data[argAddr])
 
 iorwf.size = 2
 
@@ -779,13 +791,8 @@ def xorwf(pic, f, d, a):
         argAddr = (pic.bsr << 8) | f
     else:
         argAddr = f if f < 0x80 else (0xf00 | f)
-    if d == 1:
-        resAddr = argAddr
-        arg = pic.wreg
-    else:
-        resAddr = WREG
-        arg = pic.data[argAddr]
-    _xor(pic, resAddr, arg)
+    resAddr = argAddr if d == 1 else WREG
+    _xor(pic, resAddr, pic.wreg, pic.data[argAddr])
 
 xorwf.size = 2
 
@@ -1047,7 +1054,7 @@ def addlw(pic, k):
     pic: core of PIC18F
     k: constant value to be added
     """
-    _add(pic, WREG, k)
+    _add(pic, WREG, pic.wreg, k)
 
 addlw.size = 2
 
@@ -1057,7 +1064,7 @@ def andlw(pic, k):
     pic: core of PIC18F
     k: constant value
     """
-    _and(pic, WREG, k)
+    _and(pic, WREG, pic.wreg, k)
 
 def iorlw(pic, k):
     """Logical disjunction WREG with constant 'k'
@@ -1065,7 +1072,7 @@ def iorlw(pic, k):
     pic: core of PIC18F
     k: constant value
     """
-    _ior(pic, WREG, k)
+    _ior(pic, WREG, pic.wreg, k)
 
 def lfsr(pic, f, k):
     """Put constant value (12 bit) to FSR (2 words)
@@ -1143,7 +1150,7 @@ def xorlw(pic, k):
     pic: core of PIC18F
     k: constant value
     """
-    _xor(pic, WREG, k)
+    _xor(pic, WREG, pic.wreg, k)
     
 #############################################
 # Operations: data memory <-> program memory

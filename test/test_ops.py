@@ -7,52 +7,63 @@ class TestAllOps(unittest.TestCase):
         self.pic = PICmicro()
 
     def testAddition(self):
-        op._add(self.pic, 0, 0)
+        op._add(self.pic, 0, 0, 0)
         self.assertEqual(self.pic.data[0], 0)
         self.assertEqual(self.pic.status, op.Z)
 
-        op._add(self.pic, 0, 10)
+        op._add(self.pic, 0, 0, 10)
         self.assertEqual(self.pic.data[0], 10)
         self.assertEqual(self.pic.status, 0)
 
-        op._add(self.pic, 0, 0xf)
+        op._add(self.pic, 0, 10, 0xf)
         self.assertEqual(self.pic.data[0], 25)
         self.assertEqual(self.pic.status, op.DC)
 
-        op._add(self.pic, 0, 0x70)
+        op._add(self.pic, 0, 25, 0x70)
         self.assertEqual(self.pic.data[0], 0x89)
         self.assertEqual(self.pic.status, op.OV | op.N)
 
-        op._add(self.pic, 0, 0x80)
+        op._add(self.pic, 0, 0x89, 0x80)
         self.assertEqual(self.pic.data[0], 0x09)
         self.assertEqual(self.pic.status, op.C | op.OV)
 
     def testConjuction(self):
-        op._and(self.pic, 0, 0)
+        op._and(self.pic, 0, 0, 0)
         self.assertEqual(self.pic.data[0], 0)
         self.assertEqual(self.pic.status, op.Z)
 
-        self.pic.data[0] = 0xff
-        op._and(self.pic, 0, 0xf)
+        op._and(self.pic, 0, 0xff, 0xf)
         self.assertEqual(self.pic.data[0], 0xf)
         self.assertEqual(self.pic.status, 0)
 
-        self.pic.data[0] = 0xf0
-        op._and(self.pic, 0, 0x8f)
+        op._and(self.pic, 0, 0xf0, 0x8f)
         self.assertEqual(self.pic.data[0], 0x80)
         self.assertEqual(self.pic.status, op.N)
 
     def testDisjunction(self):
-        op._ior(self.pic, op.WREG, 0)
+        op._ior(self.pic, op.WREG, 0, 0)
         self.assertEqual(self.pic.wreg, 0)
         self.assertEqual(self.pic.status, op.Z)
 
-        op._ior(self.pic, op.WREG, 0xf)
+        op._ior(self.pic, op.WREG, 0, 0xf)
         self.assertEqual(self.pic.wreg, 0xf)
         self.assertEqual(self.pic.status, 0)
 
-        op._ior(self.pic, op.WREG, 0x80)
+        op._ior(self.pic, op.WREG, 0xf, 0x80)
         self.assertEqual(self.pic.wreg, 0x8f)
+        self.assertEqual(self.pic.status, op.N)
+
+    def testExclusiveDisjunction(self):
+        op._xor(self.pic, op.WREG, 0, 0)
+        self.assertEqual(self.pic.wreg, 0)
+        self.assertEqual(self.pic.status, op.Z)
+
+        op._xor(self.pic, op.WREG, 0, 0xf)
+        self.assertEqual(self.pic.wreg, 0xf)
+        self.assertEqual(self.pic.status, 0)
+
+        op._xor(self.pic, op.WREG, 0xf7, 0xf)
+        self.assertEqual(self.pic.wreg, 0xf8)
         self.assertEqual(self.pic.status, op.N)
 
     def testAddlw(self):
