@@ -6,22 +6,24 @@ OutOfDataMemoryAccess: exception raised after access to nonexisting cell
 
 PICmicro: main class describing core of PIC18F
 """
+from sfr import *
 
 class OutOfDataMemoryAccess(Exception):
     pass
+
+SFR_ADDR_MIN = 0xf80
 
 class DataMemory:
     """Data memory of PICmicro"""
 
     DATA_ADDR_SUP = 0x1000
     GPR_ADDR_SUP = 0x300
-    SFR_ADDR_MIN = 0xf80
 
-    def __init__(self, sfr):
+    def __init__(self, pic):
         """Initialize memory of data that consists of GPRs and SFRs
-        sfr: array composed of SFR entries
+        pic: core of PIC18F
         """
-        self.sfr = sfr
+        self.pic = pic
         self.gpr = {}               # general puspose registers
 
     def __setitem__(self, addr, byte):
@@ -36,8 +38,15 @@ class DataMemory:
 
         if addr < self.GPR_ADDR_SUP:
             self.gpr[addr] = byte
-        elif addr >= self.SFR_ADDR_MIN:
-            self.sfr[addr - self.SFR_ADDR_MIN] = byte
+        elif addr >= SFR_ADDR_MIN:
+            if addr == WREG:
+                self.pic.wreg = byte
+            elif addr == BSR:
+                self.pic.bsr = byte
+            elif addr == PCL:
+                self.pic.pcl = byte
+            else:
+                self.pic.sfr[addr - SFR_ADDR_MIN] = byte
 
     def __getitem__(self, addr):
         """get byte cell from memory at given address
@@ -47,11 +56,23 @@ class DataMemory:
         """
         if not (0 <= addr < self.DATA_ADDR_SUP):
             raise OutOfDataMemoryAccess()
+            if addr == WREG:
+                self.pic.wreg = byte
+            elif addr == BSR:
+                self.pic.bsr = byte
+            elif addr == PCL:
+                self.pic.pcl = byte
 
         if addr < self.GPR_ADDR_SUP:
             return self.gpr.setdefault(addr, 0)
-        if addr >= self.SFR_ADDR_MIN:
-            return self.sfr[addr - self.SFR_ADDR_MIN]
+        if addr >= SFR_ADDR_MIN:
+            if addr == WREG:
+                return self.pic.wreg
+            if addr == BSR:
+                return self.pic.bsr
+            if addr == PCL:
+                return self.pic.pcl
+            return self.sfr[addr - SFR_ADDR_MIN]
         return 0
 
 
@@ -72,7 +93,7 @@ class PICmicro(object):
         """Initialize state of PIC18F"""
         self.__pc = 0                                       # program counter
         self.sfr = [0] * self.N_SFRs                        # specific purpose registers
-        self.data = DataMemory(self.sfr)                    # addressable memory
+        self.data = DataMemory(self)                        # addressable memory
 
     @property
     def pc(self):
@@ -92,88 +113,97 @@ class PICmicro(object):
 
     @property
     def wreg(self):
-        return self.sfr[self.WREG]
+        return self.sfr[WREG - SFR_ADDR_MIN]
     @wreg.setter
     def wreg(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.WREG] = value
+        self.sfr[WREG - SFR_ADDR_MIN] = value
 
     @property
     def status(self):
-        return self.sfr[self.STATUS]
+        return self.sfr[STATUS - SFR_ADDR_MIN]
     @status.setter
     def status(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.STATUS] = value
+        self.sfr[STATUS - SFR_ADDR_MIN] = value
 
     @property
     def bsr(self):
-        return self.sfr[self.BSR] & 0xf
+        return self.sfr[BSR - SFR_ADDR_MIN] & 0xf
     @bsr.setter
     def bsr(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.BSR] = value
+        self.sfr[BSR - SFR_ADDR_MIN] = value
+
+    @property
+    def pcl(self):
+        return self.pc & 0xff
+    @pcl.setter
+    def pcl(self, value):
+        assert 0 <= value <= 0xff
+        self.pc = (self.pc & 0xf00) | value
+
 
     @property
     def prodl(self):
-        return self.sfr[self.PRODL]
+        return self.sfr[PRODL - SFR_ADDR_MIN]
     @prodl.setter
     def prodl(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.PRODL] = value
+        self.sfr[PRODL - SFR_ADDR_MIN] = value
 
     @property
     def prodh(self):
-        return self.sfr[self.PRODH]
+        return self.sfr[PRODH - SFR_ADDR_MIN]
     @prodh.setter
     def prodh(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.PRODH] = value
+        self.sfr[PRODH - SFR_ADDR_MIN] = value
 
     @property
     def fsr0l(self):
-        return self.sfr[self.FSR0L]
+        return self.sfr[FSR0L - SFR_ADDR_MIN]
     @fsr0l.setter
     def fsr0l(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.FSR0L] = value
+        self.sfr[FSR0L - SFR_ADDR_MIN] = value
 
     @property
     def fsr0h(self):
-        return self.sfr[self.FSR0H]
+        return self.sfr[FSR0H - SFR_ADDR_MIN]
     @fsr0h.setter
     def fsr0h(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.FSR0H] = value
+        self.sfr[FSR0H - SFR_ADDR_MIN] = value
 
     @property
     def fsr1l(self):
-        return self.sfr[self.FSR1L]
+        return self.sfr[FSR1L - SFR_ADDR_MIN]
     @fsr1l.setter
     def fsr1l(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.FSR1L] = value
+        self.sfr[FSR1L - SFR_ADDR_MIN] = value
 
     @property
     def fsr1h(self):
-        return self.sfr[self.FSR1H]
+        return self.sfr[FSR1H - SFR_ADDR_MIN]
     @fsr1h.setter
     def fsr1h(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.FSR1H] = value
+        self.sfr[FSR1H - SFR_ADDR_MIN] = value
  
     @property
     def fsr2l(self):
-        return self.sfr[self.FSR2L]
+        return self.sfr[FSR2L - SFR_ADDR_MIN]
     @fsr2l.setter
     def fsr2l(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.FSR2L] = value
+        self.sfr[FSR2L - SFR_ADDR_MIN] = value
  
     @property
     def fsr2h(self):
-        return self.sfr[self.FSR2H]
+        return self.sfr[FSR2H - SFR_ADDR_MIN]
     @fsr2h.setter
     def fsr2h(self, value):
         assert 0 <= value <= 0xff
-        self.sfr[self.FSR2H] = value
+        self.sfr[FSR2H - SFR_ADDR_MIN] = value

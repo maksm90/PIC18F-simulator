@@ -12,9 +12,7 @@ class TestDataMemory(unittest.TestCase):
     """Test DataMemory access methods"""
 
     def setUp(self):
-        N_SFRs = 0x80
-        sfr = [0] * N_SFRs
-        self.data = DataMemory(sfr)
+        self.data = DataMemory(PICmicro())
 
     def _testSetGetByte(self, addr):
         self.data[addr] = 10

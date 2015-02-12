@@ -1,4 +1,5 @@
 import picmicro
+from sfr import *
 
 # bitmasks of flags
 N, OV, Z, DC, C = 0b10000, 0b01000, 0b00100, 0b00010, 0b00001
@@ -77,11 +78,6 @@ def _xor(pic, resAddr, arg1, arg2):
         set_bits |= N
     pic.data[resAddr] = result
     pic.affectStatusBits(N | Z, set_bits)
-
-# addresses of SFRs
-WREG, BSR = 0xfe8, 0xfe0
-PCL = 0xff9
-TOSU, TOSH, TOSL = 0xfff, 0xffe, 0xffd
 
 ########################################
 # Byte oriented commands with registers
