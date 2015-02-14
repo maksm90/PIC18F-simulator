@@ -1,6 +1,9 @@
 import unittest
 import op
 from picmicro import PICmicro
+import logging
+
+logging.disable(logging.INFO)
 
 class TestAllOps(unittest.TestCase):
     def setUp(self):

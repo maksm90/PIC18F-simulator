@@ -3,6 +3,9 @@ import re
 from picmicro import PICmicro
 import op
 
+def parse_fda(line):
+    pass
+
 class CLI(Cmd):
     """Command processor for pic microcontroller"""
 
@@ -10,6 +13,13 @@ class CLI(Cmd):
 
     pic = PICmicro()
     env = {}
+
+    def do_addwf(self, line):
+        """
+        addwf f[,d[,a]]
+        Add content of 'f' to WREG
+        """
+        pass
 
     def do_addlw(self, line):
         """
@@ -23,30 +33,6 @@ class CLI(Cmd):
         Exit from CLI
         """
         return True
-
-    def setValue(self, identifier, value):
-        print identifier, value
-
-    def getValue(self, identifier):
-        print identifier
-
-    def default(self, line):
-        term_pattern = '[\w\[\]]+'
-        set_val_pattern = '^\s*(' + term_pattern + ')\s*=\s*(' + term_pattern + ')\s*$'
-        get_val_pattern = '^\s*(' + term_pattern + ')\s*$'
-
-        set_re = re.compile(set_val_pattern, re.IGNORECASE)
-        get_re = re.compile(get_val_pattern, re.IGNORECASE)
-
-        m = set_re.match(line)
-        if m != None:
-            return self.setValue(m.group(1), m.group(2))
-
-        m = get_re.match(line)
-        if m != None:
-            return self.getValue(m.group(1))
-
-        return Cmd.default(line)
 
     def preloop(self):
         print '*** Starting CLI:'
