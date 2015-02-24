@@ -6,10 +6,8 @@ OutOfDataMemoryAccess: exception raised after access to nonexisting cell
 
 PICmicro: main class describing core of PIC18F
 """
-import logging
+from piclog import logger
 from sfr import *
-
-logging.basicConfig(format='*** %(levelname)-8s %(message)s', level=logging.INFO)
 
 class OutOfDataMemoryAccess(Exception):
     pass
@@ -41,7 +39,7 @@ class DataMemory:
 
         if addr < self.GPR_ADDR_SUP:
             self.gpr[addr] = byte
-            logging.info('Write 0x0x%X to data memory by address 0x0x%X' % (byte, addr))
+            logger.info('Write 0x%X to data memory by address 0x0x%X' % (byte, addr))
         elif addr >= SFR_ADDR_MIN:
             if addr == WREG:
                 self.pic.wreg = byte
@@ -50,7 +48,7 @@ class DataMemory:
             elif addr == PCL:
                 self.pic.pcl = byte
             else:
-                logging.info('Write 0x0x%X to data memory by address 0x0x%X' % (byte, addr))
+                logger.info('Write 0x0x%X to data memory by address 0x0x%X' % (byte, addr))
                 self.pic.sfr[addr - SFR_ADDR_MIN] = byte
 
     def __getitem__(self, addr):
@@ -70,7 +68,7 @@ class DataMemory:
 
         if addr < self.GPR_ADDR_SUP:
             res = self.gpr.setdefault(addr, 0)
-            logging.info('Read 0x0x%X from data memory by address 0x0x%X' % (res, addr))
+            logger.info('Read 0x%X from data memory by address 0x0x%X' % (res, addr))
             return res
         if addr >= SFR_ADDR_MIN:
             if addr == WREG:
@@ -80,7 +78,7 @@ class DataMemory:
             if addr == PCL:
                 return self.pic.pcl
             res = self.sfr[addr - SFR_ADDR_MIN]
-            logging.info('Read 0x%X from data memory by address 0x%X' % (res, addr))
+            logger.info('Read 0x%X from data memory by address 0x%X' % (res, addr))
             return res
         return 0
 
@@ -123,34 +121,34 @@ class PICmicro(object):
     @property
     def wreg(self):
         byte = self.sfr[WREG - SFR_ADDR_MIN]
-        logging.info('Read 0x%X from WREG' % byte)
+        logger.info('Read 0x%X from WREG' % byte)
         return byte
     @wreg.setter
     def wreg(self, value):
         assert 0 <= value <= 0xff
-        logging.info('Write 0x%X to WREG' % value)
+        logger.info('Write 0x%X to WREG' % value)
         self.sfr[WREG - SFR_ADDR_MIN] = value
 
     @property
     def status(self):
         byte = self.sfr[STATUS - SFR_ADDR_MIN]
-        logging.info('Read 0x%X from STATUS' % byte)
+        logger.info('Read 0x%X from STATUS' % byte)
         return byte
     @status.setter
     def status(self, value):
         assert 0 <= value <= 0xff
-        logging.info('Write 0x%X to STATUS' % value)
+        logger.info('Write 0x%X to STATUS' % value)
         self.sfr[STATUS - SFR_ADDR_MIN] = value
 
     @property
     def bsr(self):
         byte = self.sfr[BSR - SFR_ADDR_MIN] & 0xf
-        logging.info('Read 0x%X from BSR' % byte)
+        logger.info('Read 0x%X from BSR' % byte)
         return byte
     @bsr.setter
     def bsr(self, value):
         assert 0 <= value <= 0xff
-        logging.info('Write 0x%X to BSR' % value)
+        logger.info('Write 0x%X to BSR' % value)
         self.sfr[BSR - SFR_ADDR_MIN] = value
 
     @property

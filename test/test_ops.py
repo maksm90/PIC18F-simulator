@@ -1,11 +1,16 @@
 import unittest
 import op
 from picmicro import PICmicro
-import logging
-
-logging.disable(logging.INFO)
+import piclog
 
 class TestAllOps(unittest.TestCase):
+    #def setUpClass(cls):
+        #print("ok")
+        #piclog.logger.disabled = True
+
+    #def tearDownClass(cls):
+        #piclog.logger.disabled = False
+
     def setUp(self):
         self.pic = PICmicro()
 

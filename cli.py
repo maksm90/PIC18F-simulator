@@ -2,6 +2,7 @@ from cmd import Cmd
 import re
 from picmicro import PICmicro
 import op
+import piclog
 
 def parse_fda(line):
     pass
@@ -13,6 +14,17 @@ class CLI(Cmd):
 
     pic = PICmicro()
     env = {}
+
+    def _print_pic_state(self):
+        piclog.logger.disabled = True
+        print "  WREG=0x%X BSR=0x%X PC=%d"  % (self.pic.wreg, self.pic.bsr, self.pic.pc)
+        N, OV, Z, DC, C = (self.pic.status & op.N) >> 4, \
+                          (self.pic.status & op.OV) >> 3, \
+                          (self.pic.status & op.Z) >> 2, \
+                          (self.pic.status & op.DC) >> 1, \
+                          (self.pic.status & op.C)
+        print "  STATUS: N=%d OV=%d Z=%d DC=%d C=%d" % (N, OV, Z, DC, C)
+        piclog.logger.disabled = False
 
     def do_addwf(self, line):
         """
@@ -27,6 +39,7 @@ class CLI(Cmd):
         Add constant byte value to WREG 
         """
         op.addlw(self.pic, int(line))
+        self._print_pic_state()
 
     def do_exit(self, line):
         """
