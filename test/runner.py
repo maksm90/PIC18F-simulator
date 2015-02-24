@@ -7,8 +7,11 @@ import os
 import sys
 
 def runTests(testDir):
+    import piclog
+    piclog.logger.disabled = True
     testSuite = defaultTestLoader.discover(testDir)
     TextTestRunner(verbosity=1).run(testSuite)
+    piclog.logger.disabled = False
 
 
 if __name__ == '__main__':

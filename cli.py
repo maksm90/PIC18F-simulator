@@ -4,8 +4,11 @@ from picmicro import PICmicro
 import op
 import piclog
 
+def parse_constant(line):
+    return int(line)
+
 def parse_fda(line):
-    pass
+    return (0, 0, 0)
 
 class CLI(Cmd):
     """Command processor for pic microcontroller"""
@@ -31,14 +34,14 @@ class CLI(Cmd):
         addwf f[,d[,a]]
         Add content of 'f' to WREG
         """
-        pass
+        f, d, a = parse_fda(line)
 
     def do_addlw(self, line):
         """
         addlw <byte>
         Add constant byte value to WREG 
         """
-        op.addlw(self.pic, int(line))
+        op.addlw(self.pic, parse_constant(line))
         self._print_pic_state()
 
     def do_exit(self, line):

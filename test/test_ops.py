@@ -1,15 +1,9 @@
 import unittest
 import op
 from picmicro import PICmicro
-import piclog
 
 class TestAllOps(unittest.TestCase):
-    #def setUpClass(cls):
-        #print("ok")
-        #piclog.logger.disabled = True
-
-    #def tearDownClass(cls):
-        #piclog.logger.disabled = False
+    """Test implimentatons of instructions"""
 
     def setUp(self):
         self.pic = PICmicro()
