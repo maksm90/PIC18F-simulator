@@ -77,21 +77,43 @@ class DataMemory:
                 return self.pic.bsr
             if addr == PCL:
                 return self.pic.pcl
-            res = self.sfr[addr - SFR_ADDR_MIN]
+            res = self.pic.sfr[addr - SFR_ADDR_MIN]
             logger.info('Read 0x%X from data memory by address 0x%X' % (res, addr))
             return res
         return 0
 
 
+class Stack:
+    """Stack memory of PIC18F"""
+    
+    SIZE = 31
+    PC_SUP = 0x200000
+
+    def __init__(self):
+        """Initialize stack and fast registries of stack"""
+        self.storage = [0] * self.SIZE
+        self.stkptr = 0
+        self.wregs = self.statuss = self.bsrs = 0
+
+    def push(self, value):
+        """Push value on top of stack"""
+        pass
+    
+    def pop(self):
+        """Pop value from top of stack"""
+        return 0
+
+    @property
+    def top(self):
+        return 0
+    @top.setter
+    def top(self, value):
+        assert 0 <= value < PC_SUP
+        pass
+
+
 class PICmicro(object):
     """PIC18F microcontroller definition"""
-
-    # indices of SFRs
-    WREG = 0x68
-    STATUS = 0x58
-    BSR = 0x60
-    PRODL, PRODH = 0x73, 0x74
-    FSR0L, FSR0H, FSR1L, FSR1H, FSR2L, FSR2H = 0x69, 0x6a, 0x61, 0x62, 0x59, 0x5a
 
     ADDR_MASK = 0x1fffff
     N_SFRs = 0x80
@@ -101,6 +123,7 @@ class PICmicro(object):
         self.__pc = 0                                       # program counter
         self.sfr = [0] * self.N_SFRs                        # specific purpose registers
         self.data = DataMemory(self)                        # addressable memory
+        self.stack = Stack()                                # stack
 
     @property
     def pc(self):
@@ -115,8 +138,8 @@ class PICmicro(object):
         affected_bit_mask: bit mask for picking affected bits (0b0-0b11111)
         bits: result bits
         """
-        self.sfr[self.STATUS] &= ~affected_bit_mask & 0x1f
-        self.sfr[self.STATUS] |= bits & affected_bit_mask
+        self.sfr[STATUS - SFR_ADDR_MIN] &= ~affected_bit_mask & 0x1f
+        self.sfr[STATUS - SFR_ADDR_MIN] |= bits & affected_bit_mask
 
     @property
     def wreg(self):
@@ -152,74 +175,139 @@ class PICmicro(object):
         self.sfr[BSR - SFR_ADDR_MIN] = value
 
     @property
+    def stkptr(self):
+        return 0
+    @stkptr.setter
+    def stkptr(self, value):
+        assert 0 <= value < 32
+        pass
+
+    @property
+    def tosu(self):
+        byte = (self.stack.top & 0xff0000) >> 16
+        logger.info('Read 0x%X from TOSU' % byte)
+        return byte
+    @tosu.setter
+    def tosu(setter, value):
+        assert 0 <= value <= 0x1f
+        logger.info('Write 0x%X to TOSU' % value)
+        self.stack.top = self.stack.top | 0xff0000 & (value << 16)
+
+    @property
+    def tosh(self):
+        byte = (self.stack.top & 0xff00) >> 8
+        logger.info('Read 0x%X from TOSH' % byte)
+        return byte
+    @tosh.setter
+    def tosh(setter, value):
+        assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to TOSH' % value)
+        self.stack.top = self.stack.top | 0xff00 & (value << 8) 
+
+    @property
+    def tosl(self):
+        byte = self.stack.top & 0xff
+        logger.info('Read 0x%X from TOSL' % byte)
+        return byte
+    @tosl.setter
+    def tosl(setter, value):
+        assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to TOSL' % value)
+        self.stack.top = self.stack.top | 0xff & value
+
+    @property
     def pcl(self):
         return self.pc & 0xff
     @pcl.setter
     def pcl(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to PCL' % value)
         self.pc = (self.pc & 0xf00) | value
-
 
     @property
     def prodl(self):
-        return self.sfr[PRODL - SFR_ADDR_MIN]
+        byte = self.sfr[PRODL - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from PRODL' % byte)
+        return byte
     @prodl.setter
     def prodl(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to PRODL' % value)
         self.sfr[PRODL - SFR_ADDR_MIN] = value
 
     @property
     def prodh(self):
-        return self.sfr[PRODH - SFR_ADDR_MIN]
+        byte = self.sfr[PRODH - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from PRODH' % byte)
+        return byte
     @prodh.setter
     def prodh(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to PRODH' % value)
         self.sfr[PRODH - SFR_ADDR_MIN] = value
 
     @property
     def fsr0l(self):
-        return self.sfr[FSR0L - SFR_ADDR_MIN]
+        byte = self.sfr[FSR0L - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from FSR0L' % byte)
+        return byte
     @fsr0l.setter
     def fsr0l(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to FSR0L' % value)
         self.sfr[FSR0L - SFR_ADDR_MIN] = value
 
     @property
     def fsr0h(self):
-        return self.sfr[FSR0H - SFR_ADDR_MIN]
+        byte = self.sfr[FSR0H - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from FSR0H' % byte)
+        return byte
     @fsr0h.setter
     def fsr0h(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to FSR0H' % value)
         self.sfr[FSR0H - SFR_ADDR_MIN] = value
 
     @property
     def fsr1l(self):
-        return self.sfr[FSR1L - SFR_ADDR_MIN]
+        byte = self.sfr[FSR1L - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from FSR1L' % byte)
+        return byte
     @fsr1l.setter
     def fsr1l(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to FSR1L' % value)
         self.sfr[FSR1L - SFR_ADDR_MIN] = value
 
     @property
     def fsr1h(self):
-        return self.sfr[FSR1H - SFR_ADDR_MIN]
+        byte = self.sfr[FSR1H - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from FSR1H' % byte)
+        return byte
     @fsr1h.setter
     def fsr1h(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to FSR1H' % value)
         self.sfr[FSR1H - SFR_ADDR_MIN] = value
  
     @property
     def fsr2l(self):
-        return self.sfr[FSR2L - SFR_ADDR_MIN]
+        byte = self.sfr[FSR2L - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from FSR2L' % byte)
+        return byte
     @fsr2l.setter
     def fsr2l(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to FSR2L' % value)
         self.sfr[FSR2L - SFR_ADDR_MIN] = value
  
     @property
     def fsr2h(self):
-        return self.sfr[FSR2H - SFR_ADDR_MIN]
+        byte = self.sfr[FSR2H - SFR_ADDR_MIN]
+        logger.info('Read 0x%X from FSR2H' % byte)
+        return byte
     @fsr2h.setter
     def fsr2h(self, value):
         assert 0 <= value <= 0xff
+        logger.info('Write 0x%X to FSR2H' % value)
         self.sfr[FSR2H - SFR_ADDR_MIN] = value
