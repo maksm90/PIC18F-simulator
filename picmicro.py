@@ -144,19 +144,30 @@ class Stack:
 
     def push(self, value):
         """Push value on top of stack"""
-        pass
+        assert 0 <= value < self.PC_SUP
+        if self.stkptr > self.SIZE:
+            return
+        self.storage[self.stkptr] = value
+        self.stkptr += 1
     
     def pop(self):
         """Pop value from top of stack"""
-        return 0
+        if self.stkptr == 0:
+            return 0
+        self.stkptr -= 1
+        return self.storage[self.stkptr]
 
     @property
     def top(self):
-        return 0
+        if self.stkptr == 0:
+            return 0
+        return self.storage[self.stkptr - 1]
     @top.setter
     def top(self, value):
         assert 0 <= value < PC_SUP
-        pass
+        if self.stkptr == 0:
+            return
+        self.storage[self.stkptr - 1] = value
 
 
 class PICmicro(object):
@@ -223,11 +234,13 @@ class PICmicro(object):
 
     @property
     def stkptr(self):
-        return 0
+        logger.info('Read 0x%X from STKPTR' % self.stack.stkptr)
+        return self.stack.stkptr
     @stkptr.setter
     def stkptr(self, value):
-        assert 0 <= value < 32
-        pass
+        assert 0 <= value < 0xff
+        logger.info('Write 0x%X to STKPTR' % value)
+        self.stack.stkptr = value & 0x1f
 
     @property
     def tosu(self):
@@ -235,10 +248,10 @@ class PICmicro(object):
         logger.info('Read 0x%X from TOSU' % byte)
         return byte
     @tosu.setter
-    def tosu(setter, value):
-        assert 0 <= value <= 0x1f
+    def tosu(self, value):
+        assert 0 <= value <= 0xff
         logger.info('Write 0x%X to TOSU' % value)
-        self.stack.top = self.stack.top | 0xff0000 & (value << 16)
+        self.stack.top = (self.stack.top | 0xff0000) & ((value & 0x1f) << 16)
 
     @property
     def tosh(self):
@@ -246,10 +259,10 @@ class PICmicro(object):
         logger.info('Read 0x%X from TOSH' % byte)
         return byte
     @tosh.setter
-    def tosh(setter, value):
+    def tosh(self, value):
         assert 0 <= value <= 0xff
         logger.info('Write 0x%X to TOSH' % value)
-        self.stack.top = self.stack.top | 0xff00 & (value << 8) 
+        self.stack.top = (self.stack.top | 0xff00) & (value << 8) 
 
     @property
     def tosl(self):
@@ -257,10 +270,10 @@ class PICmicro(object):
         logger.info('Read 0x%X from TOSL' % byte)
         return byte
     @tosl.setter
-    def tosl(setter, value):
+    def tosl(self, value):
         assert 0 <= value <= 0xff
         logger.info('Write 0x%X to TOSL' % value)
-        self.stack.top = self.stack.top | 0xff & value
+        self.stack.top = (self.stack.top | 0xff) & value
 
     @property
     def pcl(self):

@@ -16,7 +16,7 @@ class TestDataMemory(unittest.TestCase):
             self.assertEqual(self.data.pic.__getattribute__(name), 10)
 
     def _testSetGetRegister(self, addr1, addr2, name1=None, name2=None):
-        self.data[addr2] = 0x10
+        self.data[addr2] = 0xed
         self.data[addr1] = self.data[addr2]
         self.assertEqual(self.data[addr1], self.data[addr2])
         if name1 != None:
@@ -56,10 +56,12 @@ class TestDataMemory(unittest.TestCase):
                 (FSR1L, 'fsr1l'),
                 (FSR1H, 'fsr1h'),
                 (FSR2L, 'fsr2l'),
-                (FSR2H, 'fsr2h')]
+                (FSR2H, 'fsr2h'),
+                (TOSL, 'tosl'),
+                (TOSH, 'tosh')]
 
         for addr, name in sfrs:
-            #print(name)
+            print(name)
             self._testSetGetByte(addr, name)
             self._testSetGetRegister(addr, 0, name)
             self._testSetGetRegister(addr, WREG, name, 'wreg')
