@@ -16,6 +16,7 @@ class TestDataMemory(unittest.TestCase):
             self.assertEqual(self.data.pic.__getattribute__(name), 10)
 
     def _testSetGetRegister(self, addr1, addr2, name1=None, name2=None):
+        self.data[addr2] = 0x10
         self.data[addr1] = self.data[addr2]
         self.assertEqual(self.data[addr1], self.data[addr2])
         if name1 != None:
@@ -37,9 +38,16 @@ class TestDataMemory(unittest.TestCase):
         self._testSetGetRegister(WREG, 0, 'wreg')
         self._testSetGetRegister(WREG, BSR, 'wreg', 'bsr')
 
+    def testBsr(self):
+        self.data.pic.bsr = 0x12
+        self.assertEqual(self.data.pic.bsr, 0x2)
+        self.assertEqual(self.data[BSR], 0x2)
+        self.data[BSR] = 0x15
+        self.assertEqual(self.data.pic.bsr, 0x5)
+        self.assertEqual(self.data[BSR], 0x5)
+
     def testSFR(self):
         sfrs = [(STATUS, 'status'),
-                (BSR, 'bsr'),
                 (PCL, 'pcl'),
                 (PRODL, 'prodl'),
                 (PRODH, 'prodh'),
@@ -51,21 +59,11 @@ class TestDataMemory(unittest.TestCase):
                 (FSR2H, 'fsr2h')]
 
         for addr, name in sfrs:
+            #print(name)
             self._testSetGetByte(addr, name)
             self._testSetGetRegister(addr, 0, name)
             self._testSetGetRegister(addr, WREG, name, 'wreg')
   
-    def testFsr2l(self):
-        self._testSetGetByte(FSR2L, 'fsr2l')
-        self._testSetGetRegister(FSR2L, 2, 'fsr2l')
-        self._testSetGetRegister(FSR2L, WREG, 'fsr2l', 'wreg')
-
-    def testFsr2h(self):
-        self._testSetGetByte(FSR2H, 'fsr2h')
-        self._testSetGetRegister(FSR2H, 2, 'fsr2h')
-        self._testSetGetRegister(FSR2H, WREG, 'fsr2h', 'wreg')
-        self._testSetGetRegister(FSR2H, WREG, 'fsr2h', 'wreg')
-
 
 class TestStack(unittest.TestCase):
     """Test Stack memory"""

@@ -44,12 +44,38 @@ class DataMemory:
         elif addr >= SFR_ADDR_MIN:
             if addr == WREG:
                 self.pic.wreg = byte
+            elif addr == STATUS:
+                self.pic.status = byte
             elif addr == BSR:
                 self.pic.bsr = byte
             elif addr == PCL:
                 self.pic.pcl = byte
+            elif addr == STKPTR:
+                self.pic.stkptr = byte
+            elif addr == TOSU:
+                self.pic.tosu = byte
+            elif addr == TOSH:
+                self.pic.tosh = byte
+            elif addr == TOSL:
+                self.pic.tosl = byte
+            elif addr == PRODL:
+                self.pic.prodl = byte
+            elif addr == PRODH:
+                self.pic.prodh = byte
+            elif addr == FSR0L:
+                self.pic.fsr0l = byte
+            elif addr == FSR0H:
+                self.pic.fsr0h = byte
+            elif addr == FSR1L:
+                self.pic.fsr1l = byte
+            elif addr == FSR1H:
+                self.pic.fsr1h = byte
+            elif addr == FSR2L:
+                self.pic.fsr2l = byte
+            elif addr == FSR2H:
+                self.pic.fsr2h = byte
             else:
-                logger.info('Write 0x0x%X to data memory by address 0x0x%X' % (byte, addr))
+                logger.info('Write 0x%X to data memory by address 0x%X' % (byte, addr))
                 self.pic.sfr[addr - SFR_ADDR_MIN] = byte
 
     def __getitem__(self, addr):
@@ -60,24 +86,44 @@ class DataMemory:
         """
         if not (0 <= addr < self.DATA_ADDR_SUP):
             raise OutOfDataMemoryAccess()
-            if addr == WREG:
-                self.pic.wreg = byte
-            elif addr == BSR:
-                self.pic.bsr = byte
-            elif addr == PCL:
-                self.pic.pcl = byte
 
         if addr < self.GPR_ADDR_SUP:
             res = self.gpr.setdefault(addr, 0)
-            logger.info('Read 0x%X from data memory by address 0x0x%X' % (res, addr))
+            logger.info('Read 0x%X from data memory by address 0x%X' % (res, addr))
             return res
         if addr >= SFR_ADDR_MIN:
             if addr == WREG:
                 return self.pic.wreg
+            if addr == STATUS:
+                return self.pic.status
             if addr == BSR:
                 return self.pic.bsr
             if addr == PCL:
                 return self.pic.pcl
+            if addr == STKPTR:
+                return self.pic.stkptr 
+            if addr == TOSU:
+                return self.pic.tosu 
+            if addr == TOSH:
+                return self.pic.tosh 
+            if addr == TOSL:
+                return self.pic.tosl 
+            if addr == PRODL:
+                return self.pic.prodl 
+            if addr == PRODH:
+                return self.pic.prodh 
+            if addr == FSR0L:
+                return self.pic.fsr0l 
+            if addr == FSR0H:
+                return self.pic.fsr0h 
+            if addr == FSR1L:
+                return self.pic.fsr1l 
+            if addr == FSR1H:
+                return self.pic.fsr1h 
+            if addr == FSR2L:
+                return self.pic.fsr2l 
+            if addr == FSR2H:
+                return self.pic.fsr2h 
             res = self.pic.sfr[addr - SFR_ADDR_MIN]
             logger.info('Read 0x%X from data memory by address 0x%X' % (res, addr))
             return res
