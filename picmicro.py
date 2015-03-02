@@ -14,6 +14,7 @@ class OutOfDataMemoryAccess(Exception):
 
 SFR_ADDR_MIN = 0xf80
 
+
 class DataMemory:
     """Data memory of PICmicro"""
 
@@ -222,7 +223,7 @@ class PICmicro(object):
     def pcl(self, value):
         assert 0 <= value <= 0xff
         logger.info('Write 0x%X to PCL' % value)
-        self.pc = (self.pc & 0xf00) | value
+        self.__pc = (self.pc & 0xf00) | value
 
     @property
     def prodl(self):

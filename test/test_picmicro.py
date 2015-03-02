@@ -37,15 +37,34 @@ class TestDataMemory(unittest.TestCase):
         self._testSetGetRegister(WREG, 0, 'wreg')
         self._testSetGetRegister(WREG, BSR, 'wreg', 'bsr')
 
-    def testStatus(self):
-        self._testSetGetByte(STATUS, 'status')
-        self._testSetGetRegister(STATUS, 0, 'status')
-        self._testSetGetRegister(STATUS, WREG, 'status', 'wreg')
+    def testSFR(self):
+        sfrs = [(STATUS, 'status'),
+                (BSR, 'bsr'),
+                (PCL, 'pcl'),
+                (PRODL, 'prodl'),
+                (PRODH, 'prodh'),
+                (FSR0L, 'fsr0l'),
+                (FSR0H, 'fsr0h'),
+                (FSR1L, 'fsr1l'),
+                (FSR1H, 'fsr1h'),
+                (FSR2L, 'fsr2l'),
+                (FSR2H, 'fsr2h')]
 
-    def testBsr(self):
-        self._testSetGetByte(BSR, 'bsr')
-        self._testSetGetRegister(BSR, 0, 'bsr')
-        self._testSetGetRegister(BSR, WREG, 'bsr', 'wreg')
+        for addr, name in sfrs:
+            self._testSetGetByte(addr, name)
+            self._testSetGetRegister(addr, 0, name)
+            self._testSetGetRegister(addr, WREG, name, 'wreg')
+  
+    def testFsr2l(self):
+        self._testSetGetByte(FSR2L, 'fsr2l')
+        self._testSetGetRegister(FSR2L, 2, 'fsr2l')
+        self._testSetGetRegister(FSR2L, WREG, 'fsr2l', 'wreg')
+
+    def testFsr2h(self):
+        self._testSetGetByte(FSR2H, 'fsr2h')
+        self._testSetGetRegister(FSR2H, 2, 'fsr2h')
+        self._testSetGetRegister(FSR2H, WREG, 'fsr2h', 'wreg')
+        self._testSetGetRegister(FSR2H, WREG, 'fsr2h', 'wreg')
 
 
 class TestStack(unittest.TestCase):
