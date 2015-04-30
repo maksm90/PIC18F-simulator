@@ -4,6 +4,7 @@ from picmicro import PICmicro
 import op
 import piclog
 
+
 def parse_constant(line):
     return int(line)
 
