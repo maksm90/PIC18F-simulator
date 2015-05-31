@@ -1,8 +1,11 @@
+#!/usr/bin/python
+
 from cmd import Cmd
 import re
 from picmicro import PICmicro
 import op
 import piclog
+import sys, getopt
 
 
 def parse_constant(line):
@@ -57,6 +60,45 @@ class CLI(Cmd):
     def postloop(self):
         print '*** Done'
 
+def parse_hexrec(hex_line):
+    data_len = int(hex_line[1:3], 16)
+    start_addr = int(hex_line[3:7], 16)
+    type_rec = int(hex_line[7:9], 16)
+    data = hex_line[9:(9 + 2*data_len)]
+    return (start_addr, type_rec, data)
+
+def load_code_from_hex(pic, hex_recs):
+    def convert_word(str_word):
+        return int(str_word[2:4] + str_word[:2], 16)
+
+    base_addr = 0
+    for hex_rec in hex_recs:
+        start_addr, type_rec, data = hex_rec
+        if type_rec == 1:
+            return
+        if type_rec == 4:
+            base_addr = convert_word(data)
+        elif type_rec == 0:
+            pic.program.load(base_addr+start_addr, data)
+
 
 if __name__ == '__main__':
-    CLI().cmdloop()
+    cli = CLI()
+
+    # parse command line options
+    opts, args = getopt.getopt(sys.argv[1:], 'x:', ['hex='])
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            print './cli.py [-x <hexfile>]'
+            sys.exit(0)
+        if opt in ('-x', '--hex'):
+            hex_recs = list()
+            with open(arg) as hexfile:
+                for line in hexfile:
+                    hex_recs.append(parse_hexrec(line))
+            load_code_from_hex(cli.pic, hex_recs)
+        else:
+            pass
+
+    # run CLI
+    cli.cmdloop()

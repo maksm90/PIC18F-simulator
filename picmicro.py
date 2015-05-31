@@ -130,8 +130,43 @@ class DataMemory:
         return 0
 
 
+class ProgramMemory:
+    """Program memory of PICmicro"""
+    MAX_SIZE = 0x4000
+
+    #class MemoryChunk:
+        #"""Continuous chunk of program memory"""
+        #def __init__(self, start_addr):
+            #"""init chunk of program memory
+            #start_addr: start address of chunk
+            #storage: continuous sequence of data words
+            #"""
+            #self.start_addr = start_addr
+            #self.storage = list()
+
+        #def length(self):
+            #"""get length of chunk in bytes"""
+            #return 2 * len(self.storage)
+
+    def __init__(self):
+        """Init list of cmd words"""
+        #self.chunks = list()
+        self.words = [0] * (MAX_SIZE / 2)
+
+    def load(start_addr, data):
+        """Load chunk of program code in program memory
+        start_addr: start address of chunk
+        data: list of command words
+        """
+        pass
+
+    def __getitem__(self, addr):
+        """get word from program memory"""
+        pass
+
+
 class Stack:
-    """Stack memory of PIC18F"""
+    """Stack memory of PIcarry-lookahead adderC18F"""
     
     SIZE = 31
     PC_SUP = 0x200000
@@ -181,6 +216,7 @@ class PICmicro(object):
         self.__pc = 0                                       # program counter
         self.sfr = [0] * self.N_SFRs                        # specific purpose registers
         self.data = DataMemory(self)                        # addressable memory
+        self.program = ProgramMemory()
         self.stack = Stack()                                # stack
 
     @property
