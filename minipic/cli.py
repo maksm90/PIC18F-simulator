@@ -130,9 +130,27 @@ def decode_op(opcode):
 
     # 7-bit operations
     op = CMD_COP7(opcode)
-    if op == COP_MOVWF:
+    if op == COP_CALL:
+        return 
+    elif op == COP_MOVWF:
         return MOVWF(opcode & 0xff, (opcode & 0x100) >> 8)
-    return NOP()
+
+    # 6-bit operations
+    op = CMD_COP6(opcode)
+    if op == COP_ADDWF:
+        return NOP()
+
+    # 5-bit operations
+    op = CMD_COP5(opcode)
+    if op == COP_BRA:
+        return NOP()
+
+    # 4-bit operations
+    op = CMD_COP4(opcode)
+    if op == COP_BTFSC:
+        return BTFSC(opcode & 0xff, (opcode & 0xe00) >> 9, (opcode & 0x100) >> 8)
+    elif op == COP_BTG:
+        return BTG(opcode & 0xff, (opcode & 0xe00) >> 9, (opcode & 0x100) >> 8)
 
 def load_hex(hexfile, pic):
     higher_addr = 0
@@ -179,11 +197,12 @@ class CLI(Cmd):
             self.pic.trace.add_event(('opcode_fetch', repr(current_op))) 
             current_op.execute(self.pic)
             self.pic.pc.inc(current_op.SIZE)
+            for log_record in self.pic.trace:
+                print log_record
             print 'WREG = ' + str(self.pic.data[WREG].value), \
                   'STATUS = ' + str(self.pic.data[STATUS].value), \
                   'PC = ' + str(self.pic.pc.value)
-            for log_record in self.pic.trace:
-                print log_record
+            print
 
     def do_addwf(self, line):
         """

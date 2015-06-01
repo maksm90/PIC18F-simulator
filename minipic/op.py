@@ -41,11 +41,30 @@ class MOVWF(Op):
     def __repr__(self):
         return 'MOVWF 0x%X, %d' % (self.f, self.a)
 
+class BTG(Op):
+    """ Inverse bit in 'f' """
+    def __init__(self, f, b, a):
+        self.f = f
+        self.b = b
+        self.a = a
+    def execute(self, cpu):
+        reg = _operand_reg(cpu, self.f, self.a)
+        reg[self.a] ^= 1
+    def __repr__(self):
+        return 'BTG 0x%X, %d, %d' % (self.f, self.b, self.a)
 
-
-
-
-
+class BTFSC(Op):
+    """ Test bit and skip next instruction if it's equal 0 """
+    def __init__(self, f, b, a):
+        self.f = f
+        self.b = b
+        self.a = a
+    def execute(self, cpu):
+        reg = _operand_reg(cpu, self.f, self.a)
+        if reg[self.b] == 0:
+            cpu.pc.inc(2)
+    def __repr__(self):
+        return 'BTFSC 0x%X, %d, %d' % (self.f, self.b, self.a)
 
 
 
