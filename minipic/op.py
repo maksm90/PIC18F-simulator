@@ -1,6 +1,33 @@
 import picmicro
 from sfr import *
 
+class Op:
+    """ Abstract class of operation of MC """
+    SIZE = 2
+    def execute(self, cpu):
+        raise NotImplementedError()
+
+class NOP(Op):
+    """ No operation """
+    def execute(self, cpu):
+        pass
+
+class MOVLW(Op):
+    """ Move constant to WREG """
+    def __init__(self, k):
+        self.k = k
+    def execute(self, cpu):
+        pass
+
+class MOVWF(Op):
+    """ Mov WREG to 'f' """
+    def __init__(self, f, a):
+        self.f = f
+        self.a = a
+    def execute(self, cpu):
+        pass
+
+
 # bitmasks of flags
 N, OV, Z, DC, C = 0b10000, 0b01000, 0b00100, 0b00010, 0b00001
 

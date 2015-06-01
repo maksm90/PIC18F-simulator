@@ -8,6 +8,7 @@ PICmicro: main class describing core of PIC18F
 """
 from piclog import logger
 from sfr import *
+from op import NOP
 
 class OutOfDataMemoryAccess(Exception):
     pass
@@ -132,37 +133,13 @@ class DataMemory:
 
 class ProgramMemory:
     """Program memory of PICmicro"""
-    MAX_SIZE = 0x4000
-
-    #class MemoryChunk:
-        #"""Continuous chunk of program memory"""
-        #def __init__(self, start_addr):
-            #"""init chunk of program memory
-            #start_addr: start address of chunk
-            #storage: continuous sequence of data words
-            #"""
-            #self.start_addr = start_addr
-            #self.storage = list()
-
-        #def length(self):
-            #"""get length of chunk in bytes"""
-            #return 2 * len(self.storage)
-
+    SIZE = 0x200000
     def __init__(self):
-        """Init list of cmd words"""
-        #self.chunks = list()
-        self.words = [0] * (self.MAX_SIZE / 2)
-
-    def load(start_addr, data):
-        """Load chunk of program code in program memory
-        start_addr: start address of chunk
-        data: list of command words
-        """
-        pass
-
+        self.memory = [NOP()] * (self.SIZE >> 1)
     def __getitem__(self, addr):
-        """get word from program memory"""
-        pass
+        return self.memory[addr >> 1]
+    def __setitem__(self, addr, op):
+        self.memory[addr >> 1] = op
 
 
 class Stack:
