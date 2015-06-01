@@ -151,7 +151,7 @@ class ProgramMemory:
     def __init__(self):
         """Init list of cmd words"""
         #self.chunks = list()
-        self.words = [0] * (MAX_SIZE / 2)
+        self.words = [0] * (self.MAX_SIZE / 2)
 
     def load(start_addr, data):
         """Load chunk of program code in program memory

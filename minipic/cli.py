@@ -33,6 +33,26 @@ class CLI(Cmd):
         print "  STATUS: N=%d OV=%d Z=%d DC=%d C=%d" % (N, OV, Z, DC, C)
         piclog.logger.disabled = False
 
+    def do_load(self , hexfile):
+        """
+        load hex-file
+        Load program code from file in hex format
+        """
+        with open(hexfile, 'r') as f:
+            for line in f:
+                data_len = int(line[1:3], 16)
+                start_addr = int(line[3:7], 16)
+                type_rec = int(line[7:9], 16)
+                data = line[9:(9 + 2*data_len)]
+                if type_rec == 0:
+                    # copy chunk of bytes into program memory of MC
+                    pass
+                elif type_rec == 1:
+                    return
+                elif type_rec == 4:
+                    # specify higher-order bytes of address
+                    pass
+
     def do_addwf(self, line):
         """
         addwf f[,d[,a]]
@@ -61,10 +81,6 @@ class CLI(Cmd):
         print '*** Done'
 
 def parse_hexrec(hex_line):
-    data_len = int(hex_line[1:3], 16)
-    start_addr = int(hex_line[3:7], 16)
-    type_rec = int(hex_line[7:9], 16)
-    data = hex_line[9:(9 + 2*data_len)]
     return (start_addr, type_rec, data)
 
 def load_code_from_hex(pic, hex_recs):
