@@ -45,7 +45,12 @@ class CLI(Cmd):
                 type_rec = int(line[7:9], 16)
                 data = line[9:(9 + 2*data_len)]
                 if type_rec == 0:
+                    print data
                     # copy chunk of bytes into program memory of MC
+                    for i in xrange(0, data_len, 2):
+                        opcode = int(data[(2*i + 2):(2*i + 4)] + data[2*i:(2*i + 2)], 16)
+                        print hex(opcode),
+                    print
                     pass
                 elif type_rec == 1:
                     return
