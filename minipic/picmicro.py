@@ -13,12 +13,12 @@ class DataMemory:
     def __init__(self, trace):
         self.trace = trace
         self.memory = {
-                WREG: SFR('WREG', trace),
-                BSR: SFR('BSR', trace),
+                WREG: ByteRegister(WREG, trace),
+                BSR: ByteRegister(BSR, trace),
                 STATUS: Status(trace)
                 }
     def __getitem__(self, addr):
-        return self.memory.setdefault(addr, GPR(addr, self.trace))
+        return self.memory.setdefault(addr, ByteRegister(addr, self.trace))
 
 class ProgramMemory:
     """Program memory of PICmicro"""
