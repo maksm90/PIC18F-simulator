@@ -45,7 +45,7 @@ class ByteRegister(Register):
     def __getitem__(self, i):
         assert 0 <= i <= 7
         bit = (self.value & (1 << i)) >> i
-        self.trace.add_event(('register_read_bit', 'GPR', self.addr, i, bit))
+        self.trace.add_event(('register_read_bit', self.addr, i, bit))
         return bit
 
 class Status(ByteRegister):

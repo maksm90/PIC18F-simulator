@@ -194,7 +194,11 @@ class CLI(Cmd):
             num_steps = int(line)
         for _ in xrange(num_steps):
             current_op = self.pic.program[self.pic.pc.value]
-            self.pic.trace.add_event(('opcode_fetch', repr(current_op))) 
+            self.pic.trace.add_event((
+                'opcode_fetch', 
+                current_op.__class__.__name__, 
+                tuple(map(hex, reversed(current_op.__dict__.values()))))
+                ) 
             current_op.execute(self.pic)
             self.pic.pc.inc(current_op.SIZE)
             for log_record in self.pic.trace:
