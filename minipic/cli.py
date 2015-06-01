@@ -143,8 +143,7 @@ class CLI(Cmd):
 
     prompt = 'minipic> '
 
-    interpreter = Interpreter()
-    pic = interpreter.cpu
+    pic = PICmicro()
     env = {}
 
     def _print_pic_state(self):
@@ -189,7 +188,9 @@ class CLI(Cmd):
         else:
             num_steps = int(line)
         for _ in xrange(num_steps):
-            self.interpreter.step()
+            current_op = self.pic.program[self.pic.pc]
+            current_op.execute(self.pic)
+            self.pic.pc.inc(current_op.SIZE)
 
     def do_addwf(self, line):
         """
