@@ -6,6 +6,7 @@ from picmicro import PICmicro
 from op import *
 import piclog
 import sys, getopt
+from interpreter import Interpreter
 
 # masks to pick out code of commands of operations
 def CMD_COP4(cmd):
@@ -175,13 +176,21 @@ class CLI(Cmd):
                         opcode = int(s_opcode, 16)
                         addr = ((higher_addr << 16) | start_addr) + i
                         self.pic.program[addr] = decode_op(opcode)
-                        print decode_op(opcode)
-                    pass
                 elif type_rec == 1:
                     return
                 elif type_rec == 4:
                     # specify higher-order bytes of address
                     higher_addr = int(data, 16)
+
+    def do_step(self, line):
+        if line == '':
+            num_steps = 1
+        else:
+            num_steps = int(line)
+        for _ in xrange(num_steps):
+            current_op = self.pic.program[self.pic.pc]
+            current_op.execute(self.pic)
+            self.pic.pc.inc(current_op.SIZE)
 
     def do_addwf(self, line):
         """
