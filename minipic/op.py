@@ -17,6 +17,8 @@ class NOP(Op):
     """ No operation """
     def execute(self, cpu):
         pass
+    def __repr__(self):
+        return 'NOP'
 
 class MOVLW(Op):
     """ Move constant to WREG """
@@ -24,6 +26,8 @@ class MOVLW(Op):
         self.k = k
     def execute(self, cpu):
         cpu.data[picmicro.WREG].put(self.k)
+    def __repr__(self):
+        return 'MOVLW 0x%X' % self.k
 
 class MOVWF(Op):
     """ Mov WREG to 'f' """
@@ -34,6 +38,8 @@ class MOVWF(Op):
         wreg_value = cpu.data[picmicro.WREG].get()
         dest = _operand_reg(cpu, self.f, self.a)
         dest.put(wreg_value) 
+    def __repr__(self):
+        return 'MOVWF 0x%X, %d' % (self.f, self.a)
 
 
 

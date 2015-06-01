@@ -10,13 +10,15 @@ from register import *
 
 class DataMemory:
     """ Data memory of PIC """
-    def __init__(self):
-        self.memory = {}
-        self.memory[WREG] = ByteRegister()
-        self.memory[BSR] = ByteRegister()
-        self.memory[STATUS] = Status()
+    def __init__(self, trace):
+        self.trace = trace
+        self.memory = {
+                WREG: SFR('WREG', trace),
+                BSR: SFR('BSR', trace),
+                STATUS: Status(trace)
+                }
     def __getitem__(self, addr):
-        return self.memory.setdefault(addr, ByteRegister())
+        return self.memory.setdefault(addr, GPR(addr, self.trace))
 
 class ProgramMemory:
     """Program memory of PICmicro"""
@@ -28,16 +30,34 @@ class ProgramMemory:
     def __setitem__(self, addr, op):
         self.memory[addr >> 1] = op
 
+class TraceBuf:
+    """ Buffer for saving of trace logs """
+    SIZE = 128
+    def __init__(self):
+        self.buf = [None] * self.SIZE
+        self.index = 0
+        self.iter_index = 0
+    def add_event(self, event):
+        self.buf[self.index] = event
+        self.index = (self.index + 1) % self.SIZE
+        if self.index == self.iter_index:
+            self.iter_index = (self.iter_index + 1) % self.SIZE
+    def __iter__(self):
+        return self
+    def next(self):
+        if self.iter_index == self.index:
+            raise StopIteration()
+        item = self.buf[self.iter_index]
+        self.iter_index = (self.iter_index + 1) % self.SIZE
+        return item
+
 class MCU(object): 
     """ PIC18F microprocessor core unit """
     def __init__(self):
+        self.trace = TraceBuf()
         self.pc = PC()
-        self.data = DataMemory()
+        self.data = DataMemory(self.trace)
         self.program = ProgramMemory()
-        #self.stack = Stack()
-
-
-
 
 
 

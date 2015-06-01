@@ -176,11 +176,14 @@ class CLI(Cmd):
             num_steps = int(line)
         for _ in xrange(num_steps):
             current_op = self.pic.program[self.pic.pc.value]
+            self.pic.trace.add_event(('opcode_fetch', repr(current_op))) 
             current_op.execute(self.pic)
             self.pic.pc.inc(current_op.SIZE)
-            print 'WREG = ' + str(self.pic.data[WREG].get()), \
-                  'STATUS = ' + str(self.pic.data[STATUS].get()), \
+            print 'WREG = ' + str(self.pic.data[WREG].value), \
+                  'STATUS = ' + str(self.pic.data[STATUS].value), \
                   'PC = ' + str(self.pic.pc.value)
+            for log_record in self.pic.trace:
+                print log_record
 
     def do_addwf(self, line):
         """

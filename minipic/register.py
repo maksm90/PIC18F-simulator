@@ -41,8 +41,53 @@ class ByteRegister(Register):
         assert 0 <= i <= 7
         return (self.value & (1 << i)) >> i;
 
+class SFR(ByteRegister):
+    """ Special function register class with trace logging support """
+    def __init__(self, name, trace):
+        ByteRegister.__init__(self)
+        self.name = name
+        self.trace = trace
+    def put(self, value):
+        ByteRegister.put(self, value)
+        self.trace.add_event(('register_write', 'SFR', self.name, value))
+    def get(self):
+        value = ByteRegister.get(self)
+        self.trace.add_event(('register_read', 'SFR', self.name, value))
+        return value
+    def __setitem__(self, i, bit):
+        ByteRegister.__setitem__(self, i, bit)
+        self.trace.add_event(('register_write_bit', 'SFR', self.name, i, bit))
+    def __getitem__(self, i):
+        bit = ByteRegister.__getitem__(self, i)
+        self.trace.add_event(('register_read_bit', 'SFR', self.name, i, bit))
+        return bit
+
+class GPR(ByteRegister):
+    """ General purpose register class with trace logging support """
+    def __init__(self, addr, trace):
+        ByteRegister.__init__(self)
+        self.addr = addr
+        self.trace = trace
+    def put(self, value):
+        ByteRegister.put(self, value)
+        self.trace.add_event(('register_write', 'GPR', self.addr, value))
+    def get(self):
+        value = ByteRegister.get(self)
+        self.trace.add_event(('register_read', 'GPR', self.addr, value))
+        return value
+    def __setitem__(self, i, bit):
+        ByteRegister.__setitem__(self, i, bit)
+        self.trace.add_event(('register_write_bit', 'GPR', self.addr, i, bit))
+    def __getitem__(self, i):
+        bit = ByteRegister.__getitem__(self, i)
+        self.trace.add_event(('register_read_bit', 'GPR', self.addr, i, bit))
+        return bit
+
 class Status(ByteRegister):
     """ Status register """
+    def __init__(self, trace):
+        ByteRegister.__init__(self)
+        self.trace = trace
     def put(self, value):
         pass
     def __setitem__(self, i, bit):
