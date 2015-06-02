@@ -5,8 +5,12 @@ __pycache__/
 # C extensions
 *.so
 
+# vim temprary files
+*.swp
+
 # Distribution / packaging
 .Python
+bin/
 env/
 build/
 develop-eggs/
