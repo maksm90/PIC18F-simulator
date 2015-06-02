@@ -94,7 +94,7 @@ COP_TSTFSZ = 0x6600
 COP_XORLW = 0x0A00
 COP_XORWF = 0x1800
 
-def decode_op(opcode):
+def decode_op(opcode, next_opcode):
     """ Decode code of operation and return op object """
 
     # 16-bit operations
@@ -110,6 +110,8 @@ def decode_op(opcode):
     op = CMD_COP15(opcode)
     if op == COP_RETFIE:
         return NOP()
+    elif op == COP_RETURN:
+        return RETURN(opcode & 1)
 
     # 12-bit operations
     op = CMD_COP12(opcode)
@@ -127,11 +129,36 @@ def decode_op(opcode):
         return NOP()
     elif op == COP_MOVLW:
         return MOVLW(opcode & 0xff)
+    elif op == COP_GOTO:
+        return GOTO((opcode & 0xff) | ((next_opcode & 0xfff) << 8))
 
     # 7-bit operations
     op = CMD_COP7(opcode)
-    if op == COP_MOVWF:
+    if op == COP_CALL:
+        return CALL((opcode & 0xff) | ((next_opcode & 0xfff) << 8),
+                    (opcode & 0x100) >> 8)
+    elif op == COP_MOVWF:
         return MOVWF(opcode & 0xff, (opcode & 0x100) >> 8)
+
+    # 6-bit operations
+    op = CMD_COP6(opcode)
+    if op == COP_ADDWF:
+        return NOP()
+    elif op == COP_DECFSZ:
+        return DECFSZ(opcode & 0xff, (opcode & 0x200) >> 9, (opcode & 0x100) >> 8)
+
+    # 5-bit operations
+    op = CMD_COP5(opcode)
+    if op == COP_BRA:
+        return NOP()
+
+    # 4-bit operations
+    op = CMD_COP4(opcode)
+    if op == COP_BTFSC:
+        return BTFSC(opcode & 0xff, (opcode & 0xe00) >> 9, (opcode & 0x100) >> 8)
+    elif op == COP_BTG:
+        return BTG(opcode & 0xff, (opcode & 0xe00) >> 9, (opcode & 0x100) >> 8)
+
     return NOP()
 
 def load_hex(hexfile, pic):
@@ -144,10 +171,17 @@ def load_hex(hexfile, pic):
         if type_rec == 0:
             # copy chunk of bytes into program memory of MC
             for i in xrange(0, data_len, 2):
-                s_opcode = data[(2*i + 2):(2*i + 4)] + data[2*i:(2*i + 2)]
-                opcode = int(s_opcode, 16)
+                byte1 = int(data[2*i:(2*i + 2)], 16)
+                byte2 = int(data[(2*i + 2):(2*i + 4)], 16)
+                if i + 2 < data_len:
+                    byte3 = int(data[(2*i + 4):(2*i + 6)], 16)
+                    byte4 = int(data[(2*i + 6):(2*i + 8)], 16)
+                else:
+                    byte3, byte4 = 0, 0
+                opcode = (byte2 << 8) | byte1
+                next_opcode = (byte4 << 8) | byte3
                 addr = ((higher_addr << 16) | start_addr) + i
-                pic.program[addr] = decode_op(opcode)
+                pic.program[addr] = decode_op(opcode, next_opcode)
         elif type_rec == 1:
             return
         elif type_rec == 4:
@@ -176,14 +210,18 @@ class CLI(Cmd):
             num_steps = int(line)
         for _ in xrange(num_steps):
             current_op = self.pic.program[self.pic.pc.value]
-            self.pic.trace.add_event(('opcode_fetch', repr(current_op))) 
+            self.pic.trace.add_event((
+                'opcode_fetch', 
+                current_op.__class__.__name__, 
+                tuple(map(hex, reversed(current_op.__dict__.values()))))
+                ) 
             current_op.execute(self.pic)
-            self.pic.pc.inc(current_op.SIZE)
+            for log_record in self.pic.trace:
+                print log_record
             print 'WREG = ' + str(self.pic.data[WREG].value), \
                   'STATUS = ' + str(self.pic.data[STATUS].value), \
                   'PC = ' + str(self.pic.pc.value)
-            for log_record in self.pic.trace:
-                print log_record
+            print
 
     def do_addwf(self, line):
         """

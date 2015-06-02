@@ -7,6 +7,10 @@ def _operand_reg(cpu, f, a):
         addr = f if f < 0x80 else (0x0f00 | f)
     return cpu.data[addr]
 
+def _result_reg(cpu, operand_reg, d):
+    return cpu.data[picmicro.WREG] if d == 0 else operand_reg
+
+
 class Op:
     """ Abstract class of operation of MC """
     SIZE = 2
@@ -16,9 +20,7 @@ class Op:
 class NOP(Op):
     """ No operation """
     def execute(self, cpu):
-        pass
-    def __repr__(self):
-        return 'NOP'
+        cpu.pc.inc(self.SIZE)
 
 class MOVLW(Op):
     """ Move constant to WREG """
@@ -26,8 +28,7 @@ class MOVLW(Op):
         self.k = k
     def execute(self, cpu):
         cpu.data[picmicro.WREG].put(self.k)
-    def __repr__(self):
-        return 'MOVLW 0x%X' % self.k
+        cpu.pc.inc(self.SIZE)
 
 class MOVWF(Op):
     """ Mov WREG to 'f' """
@@ -38,21 +39,79 @@ class MOVWF(Op):
         wreg_value = cpu.data[picmicro.WREG].get()
         dest = _operand_reg(cpu, self.f, self.a)
         dest.put(wreg_value) 
-    def __repr__(self):
-        return 'MOVWF 0x%X, %d' % (self.f, self.a)
+        cpu.pc.inc(self.SIZE)
 
+class BTG(Op):
+    """ Inverse bit in 'f' """
+    def __init__(self, f, b, a):
+        self.f = f
+        self.b = b
+        self.a = a
+    def execute(self, cpu):
+        reg = _operand_reg(cpu, self.f, self.a)
+        reg[self.a] ^= 1
+        cpu.pc.inc(self.SIZE)
 
+class BTFSC(Op):
+    """ Test bit and skip next instruction if it's equal 0 """
+    def __init__(self, f, b, a):
+        self.f = f
+        self.b = b
+        self.a = a
+    def execute(self, cpu):
+        reg = _operand_reg(cpu, self.f, self.a)
+        if reg[self.b] == 0:
+            cpu.pc.inc(2)
+        cpu.pc.inc(self.SIZE)
 
+class CALL(Op):
+    """ Goto subroutine in all range of memory """
+    SIZE = 4
+    def __init__(self, n, s):
+        self.n = n
+        self.s = s
+    def execute(self, cpu):
+        cpu.stack.push(cpu.pc.value + 4)
+        cpu.pc.value = self.n << 1
+        if self.s == 1:
+            cpu.stack.ws = cpu.data[picmicro.WREG].get()
+            cpu.stack.statuss = cpu.data[picmicro.STATUS].get()
+            cpu.stack.bsrs = cpu.data[picmicro.BSR].get()
 
+class DECFSZ(Op):
+    """ Decrement 'f', skip next instruction if result is equal 0 """
+    def __init__(self, f, d, a):
+        self.f = f
+        self.d = d
+        self.a = a
+    def execute(self, cpu):
+        src = _operand_reg(cpu, self.f, self.a)
+        dest = _result_reg(cpu, src, self.d)
+        result = src.get() - 1
+        if result == 0:
+            cpu.pc.inc(2)
+        dest.put(result)
+        cpu.pc.inc(self.SIZE)
 
+class GOTO(Op):
+    """ Go to specific address """
+    SIZE = 4
+    def __init__(self, k):
+        self.k = k
+    def execute(self, cpu):
+        cpu.pc.value = self.k << 1
 
-
-
-
-
-
-
-
+class RETURN(Op):
+    """ Return from subroutine """
+    SIZE = 1
+    def __init__(self, s):
+        self.s = s
+    def execute(self, cpu):
+        cpu.pc.value = cpu.stack.pop()
+        if self.s == 1:
+            cpu.data[picmicro.WREG].set(pic.stack.ws)
+            cpu.data[picmicro.STATUS].set(pic.stack.statuss)
+            cpu.data[picmicro.BSR].set(pic.stack.bsrs)
 
 
 
@@ -70,10 +129,10 @@ class MOVWF(Op):
 # bitmasks of flags
 #N, OV, Z, DC, C = 0b10000, 0b01000, 0b00100, 0b00010, 0b00001
 
-#def _add(pic, resAddr, arg1, arg2):
+#def _add(cpu, resAddr, arg1, arg2):
     #"""Internal procedure that performs addition 'arg1' and 'arg2' and saving result by address 'resAddr'
     #This operation affects C, DC, Z, OV, N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #resAddr: address of saving result
     #arg1: first argument of operation
     #arg2: second argument of operation
@@ -83,7 +142,7 @@ class MOVWF(Op):
     #carry = (result & 0x100) >> 8
     #set_bits = carry
     #decCarry = (((arg1 & 0xf) + (arg2 & 0xf)) & 0x10) >> 4
-    #set_bits |= decCarry << 1
+    #set_specificbits |= decCarry << 1
     #if result & 0xff == 0:
         #set_bits |= Z
     #signCarry = (((arg1 & 0x7f) + (arg2 & 0x7f)) & 0x80) >> 7
@@ -91,13 +150,13 @@ class MOVWF(Op):
     #sign = (result & 0x80) >> 7
     #set_bits |= sign << 4
 
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
 
-#def _and(pic, resAddr, arg1, arg2):
+#def _and(cpu, resAddr, arg1, arg2):
     #"""Internal procedure that performs bitwise conjuction 'arg1' with 'arg2' and saving result by address 'resAddr'
     #This operation affects Z and N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #resAddr: address of result
     #arg1: first argument of operation
     #arg2: second argument of operation
@@ -108,13 +167,13 @@ class MOVWF(Op):
         #set_bits |= Z
     #if result & 0x80 > 0:
         #set_bits |= N
-    #pic.data[resAddr] = result
-    #pic.affectStatusBits(N | Z, set_bits)
+    #cpu.data[resAddr] = result
+    #cpu.affectStatusBits(N | Z, set_bits)
 
-#def _ior(pic, resAddr, arg1, arg2):
+#def _ior(cpu, resAddr, arg1, arg2):
     #"""Internal procedure for bitwise disjunction between 'arg1' and 'arg2' and saving result by address 'resAddr'
     #This operation affects Z and N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #resAddr: address for result
     #arg1: first argument
     #arg2: second argument
@@ -125,13 +184,13 @@ class MOVWF(Op):
         #set_bits |= Z
     #if result & 0x80 > 0:
         #set_bits |= N
-    #pic.data[resAddr] = result
-    #pic.affectStatusBits(N | Z, set_bits)
+    #cpu.data[resAddr] = result
+    #cpu.affectStatusBits(N | Z, set_bits)
 
-#def _xor(pic, resAddr, arg1, arg2):
+#def _xor(cpu, resAddr, arg1, arg2):
     #"""Internal procedure for exclusive disjunction between 'arg1' and 'arg2' and saving result in memory cell by address 'resAddr'
     #This operation affects Z and N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #resAddr: address for result
     #arg1: first argument
     #arg2: second argument
@@ -142,44 +201,44 @@ class MOVWF(Op):
         #set_bits |= Z
     #if result & 0x80 > 0:
         #set_bits |= N
-    #pic.data[resAddr] = result
-    #pic.affectStatusBits(N | Z, set_bits)
+    #cpu.data[resAddr] = result
+    #cpu.affectStatusBits(N | Z, set_bits)
 
 #########################################
 ## Byte oriented commands with registers
 #########################################
-#def addwf(pic, f, d, a):
+#def addwf(cpu, f, d, a):
     #"""Add WREG with 'f'
     #affect C, DC, Z, OV, N
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address of second term of sum
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying address of second term of sum (if a = 1 then address defined BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = argAddr if d == 1 else WREG
-    #_add(pic, resAddr, pic.wreg, pic.data[argAddr])
+    #_add(cpu, resAddr, pic.wreg, pic.data[argAddr])
 
 #addwf.size = 2
 
 
-#def addwfc(pic, f, d, a):
+#def addwfc(cpu, f, d, a):
     #"""Add WREG with 'f' and with bit C
     #affect C, DC, Z, OV, N
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address of second term of sum
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying address of second term of sum (if a = 1 then address defined BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #carryFlag = pic.status & C
-    #arg1, arg2 = pic.wreg, pic.data[argAddr]
+    #carryFlag = cpu.status & C
+    #arg1, arg2 = cpu.wreg, pic.data[argAddr]
     #result = arg1 + arg2 + carryFlag
 
     #carry = (result & 0x100) >> 8
@@ -194,136 +253,136 @@ class MOVWF(Op):
     #set_bits |= sign << 4
 
     #resAddr = WREG if d == 0 else argAddr
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
  
 #addwfc.size = 2
 
 
-#def andwf(pic, f, d, a):
+#def andwf(cpu, f, d, a):
     #"""Conjunction between WREG and 'f'
     #affect Z, N
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address of second term of conjunction
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying address of second term of conjuction (if a = 1 then address defined BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
-    #_and(pic, resAddr, pic.wreg, pic.data[argAddr]) 
+    #_and(cpu, resAddr, pic.wreg, pic.data[argAddr]) 
     
 #andwf.size = 2
 
 
-#def clrf(pic, f, a):
+#def clrf(cpu, f, a):
     #"""Clear register 'f'
     #affect Z
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address
     #a: flag specifying register address (if a = 1 then address defined BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #pic.data[argAddr] = 0
-    #pic.affectStatusBits(Z, Z)
+    #cpu.data[argAddr] = 0
+    #cpu.affectStatusBits(Z, Z)
 
 #clrf.size = 2
 
 
-#def comf(pic, f, d, a):
+#def comf(cpu, f, d, a):
     #"""Inverse register 'f'
     #affect Z, N
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #result = ~pic.data[argAddr] & 0xff
+    #result = ~cpu.data[argAddr] & 0xff
     #set_bits = 0
     #if result == 0:
         #set_bits |= Z
     #if result & 0x80 > 0:
         #set_bits |= N
-    #pic.data[resAddr] = result
-    #pic.affectStatusBits(N | Z, set_bits)
+    #cpu.data[resAddr] = result
+    #cpu.affectStatusBits(N | Z, set_bits)
 
 #comf.size = 2
 
 
-#def cpfseq(pic, f, a):
+#def cpfseq(cpu, f, a):
     #"""Compare WREG and 'f'; skip next instuction if they are equal
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #if pic.data[argAddr] == pic.wreg:
-        #pic.incPC(2)
+    #if cpu.data[argAddr] == pic.wreg:
+        #cpu.incPC(2)
 
 #cpfseq.size = 2
 
 
-#def cpfsgt(pic, f, a):
+#def cpfsgt(cpu, f, a):
     #"""Compare WREG and 'f'; if WREG > 'f' then skip next instruction
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #if pic.data[argAddr] < pic.wreg:
-        #pic.incPC(2)
+    #if cpu.data[argAddr] < pic.wreg:
+        #cpu.incPC(2)
 
 #cpfsgt.size = 2
 
 
-#def cpfslt(pic,f, a):
+#def cpfslt(cpu,f, a):
     #"""Compare WREG and 'f'; if WREG < 'f' then skip next instruction
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #if pic.data[argAddr] > pic.wreg:
-        #pic.incPC(2)
+    #if cpu.data[argAddr] > pic.wreg:
+        #cpu.incPC(2)
 
 #cpfslt.size = 2
 
 
-#def decf(pic, f, d, a):
+#def decf(cpu, f, d, a):
     #"""Decrement 'f'
     #affect C, DC, Z, OV, N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg = pic.data[argAddr]
+    #arg = cpu.data[argAddr]
     #result = arg - 1
     #set_bits = 0
     #if arg != 0:
@@ -336,69 +395,69 @@ class MOVWF(Op):
         #set_bits |= OV
     #if result & 0x80 > 0:
         #set_bits |= N
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
 
 #decf.size = 2
 
 
-#def decfsz(pic, f, d, a):
+#def decfsz(cpu, f, d, a):
     #"""Decrement 'f'; skip next instruction if result is equal zero
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #result = pic.data[argAddr] - 1
+    #result = cpu.data[argAddr] - 1
     #if result == 0:
-        #pic.incPC(2)
-    #pic.data[resAddr] = result & 0xff
+        #cpu.incPC(2)
+    #cpu.data[resAddr] = result & 0xff
 
 #decf.size = 2
 
 
-#def dcfsnz(pic, f, d, a):
+#def dcfsnz(cpu, f, d, a):
     #"""Decrement 'f'; skip next instruction if result is not equal zero
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #result = pic.data[argAddr] - 1
+    #result = cpu.data[argAddr] - 1
     #if result != 0:
-        #pic.incPC(2)
-    #pic.data[resAddr] = result & 0xff
+        #cpu.incPC(2)
+    #cpu.data[resAddr] = result & 0xff
 
 #dcfsnz.size = 2
 
 
-#def incf(pic, f, d, a):
+#def incf(cpu, f, d, a):
     #"""Increment 'f'
     #affect C, DC, Z, OV, N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg = pic.data[argAddr]
+    #arg = cpu.data[argAddr]
     #result = arg + 1
     #set_bits = 0
     #if arg == 0xff:
@@ -411,147 +470,147 @@ class MOVWF(Op):
         #set_bits |= OV
     #if result & 0x80 > 0:
         #set_bits |= N
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
 
 #incf.size = 2
 
 
-#def incfsz(pic, f, d, a):
+#def incfsz(cpu, f, d, a):
     #"""Increment 'f'; skip next instruction if result is equal zero
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #result = (pic.data[argAddr] + 1) & 0xff
+    #result = (cpu.data[argAddr] + 1) & 0xff
     #if result == 0:
-        #pic.incPC(2)
-    #pic.data[resAddr] = result
+        #cpu.incPC(2)
+    #cpu.data[resAddr] = result
 
 #incfsz.size = 2
 
 
-#def infsnz(pic, f, d, a):
+#def infsnz(cpu, f, d, a):
     #"""Increment 'f'; skip next instruction if result is not equal zero
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #result = (pic.data[argAddr] + 1) & 0xff
+    #result = (cpu.data[argAddr] + 1) & 0xff
     #if result != 0:
-        #pic.incPC(2)
-    #pic.data[resAddr] = result
+        #cpu.incPC(2)
+    #cpu.data[resAddr] = result
 
 #infsnz.size = 2
 
 
-#def iorwf(pic, f, d, a):
+#def iorwf(cpu, f, d, a):
     #"""Logic disjunction between WREG and 'f';
     #Flags Z and N are affected
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
-    #_ior(pic, resAddr, pic.wreg, pic.data[argAddr])
+    #_ior(cpu, resAddr, pic.wreg, pic.data[argAddr])
 
 #iorwf.size = 2
 
 
-#def movf(pic, f, d, a):
+#def movf(cpu, f, d, a):
     #"""Move 'f'
     #Flags Z and N are affected
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
-    #pic.data[resAddr] = pic.data[argAddr]
+    #cpu.data[resAddr] = pic.data[argAddr]
 
 #movf.size = 2
 
 
-#def movff(pic, fs, fd):
+#def movff(cpu, fs, fd):
     #"""Move source 'fs' to destination 'fd'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #fs: address of source
     #fd: address of destination
     #"""
     #assert fs != PCL and fs != TOSU and fs != TOSH and fs != TOSL
-    #pic.data[fd] = pic.data[fs]
+    #cpu.data[fd] = pic.data[fs]
 
 #movff.size = 4
 
 
-#def movwf(pic, f, a):
+#def movwf(cpu, f, a):
     #"""Move WREG to 'f'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #pic.data[argAddr] = pic.wreg
+    #cpu.data[argAddr] = pic.wreg
 
 #movwf.size = 2
 
 
-#def mulwf(pic, f, a):
+#def mulwf(cpu, f, a):
     #"""Multiply WREG and 'f'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #result = pic.wreg * pic.data[argAddr]
-    #pic.prodl = result & 0xff
-    #pic.prodh = (result & 0xff00) >> 8
+    #result = cpu.wreg * pic.data[argAddr]
+    #cpu.prodl = result & 0xff
+    #cpu.prodh = (result & 0xff00) >> 8
 
 #mulwf.size = 2
 
 
-#def negf(pic, f, a):
+#def negf(cpu, f, a):
     #"""Negative value of 'f'
     #Flags C, DC, Z, OV, N are affected
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
 
-    #result = (~pic.data[argAddr] + 1) & 0xff
+    #result = (~cpu.data[argAddr] + 1) & 0xff
     #set_bits = 0
     #if result & 0x80 > 0:
         #set_bits |= N
@@ -561,55 +620,55 @@ class MOVWF(Op):
         #set_bits |= DC
     #if result == 0x80:
         #set_bits |= OV
-    #pic.data[argAddr] = result
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[argAddr] = result
+    #cpu.affectStatusBits(0x1f, set_bits)
 
 #negf.size = 2
 
 
-#def rlcf(pic, f, d, a):
+#def rlcf(cpu, f, d, a):
     #"""Left shift with carry
     #Flags C, Z, N are affects
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #result = pic.data[argAddr] << 1
-    #result |= pic.status & C
+    #result = cpu.data[argAddr] << 1
+    #result |= cpu.status & C
     #set_bits = (result & 0x100) >> 8
     #if result & 0xff == 0:
         #set_bits |= Z
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(C | Z | N, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(C | Z | N, set_bits)
 
 #rlcf.size = 2
 
 
-#def rlncf(pic, f, d, a):
+#def rlncf(cpu, f, d, a):
     #"""Left shift without carry
     #Flags Z, N are affects
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #result = pic.data[argAddr] << 1
+    #result = cpu.data[argAddr] << 1
     #result |= (result >> 8)
     #set_bits = 0
     #if result & 0xff == 0:
@@ -617,55 +676,55 @@ class MOVWF(Op):
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(Z | N, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(Z | N, set_bits)
 
 #rlncf.size = 2
 
 
-#def rrcf(pic, f, d, a):
+#def rrcf(cpu, f, d, a):
     #"""Right shift with carry
     #Flags C, Z, N are affects
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg = pic.data[argAddr]
+    #arg = cpu.data[argAddr]
     #set_bits = arg & 0x1
-    #result = (arg >> 1) | ((pic.status & C) << 7)
+    #result = (arg >> 1) | ((cpu.status & C) << 7)
     #if result & 0xff == 0:
         #set_bits |= Z
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.data[resAddr] = result
-    #pic.affectStatusBits(C | Z | N, set_bits)
+    #cpu.data[resAddr] = result
+    #cpu.affectStatusBits(C | Z | N, set_bits)
 
 #rrcf.size = 2
 
 
-#def rrncf(pic, f, d, a):
+#def rrncf(cpu, f, d, a):
     #"""Right shift without carry
     #Flags Z, N are affects
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg = pic.data[argAddr]
+    #arg = cpu.data[argAddr]
     #arg |= ((arg & 0b1) << 8)
     #result = arg >> 1
     #set_bits = 0
@@ -674,44 +733,44 @@ class MOVWF(Op):
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.data[resAddr] = result
-    #pic.affectStatusBits(Z | N, set_bits)
+    #cpu.data[resAddr] = result
+    #cpu.affectStatusBits(Z | N, set_bits)
 
 #rrncf.size = 2
 
 
-#def setf(pic, f, a):
+#def setf(cpu, f, a):
     #"""Set all bits of 'f'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #pic.data[argAddr] = 0xff
+    #cpu.data[argAddr] = 0xff
 
 #setf.size = 2
 
 
-#def subfwb(pic, f, d, a):
+#def subfwb(cpu, f, d, a):
     #"""Substitute 'f' from WREG with borrow
     #Flags Z, N, OV, DC, C are affects
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg1 = pic.wreg
-    #arg2 = (-pic.data[argAddr]) & 0xff
-    #arg3 = 0 if (pic.status & C == 1) else 0xff
+    #arg1 = cpu.wreg
+    #arg2 = (-cpu.data[argAddr]) & 0xff
+    #arg3 = 0 if (cpu.status & C == 1) else 0xff
     #result = arg1 + arg2 + arg3
 
     #set_bits = 0
@@ -727,27 +786,27 @@ class MOVWF(Op):
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
 
 #subfwb.size = 2
 
 
-#def subwf(pic, f, d, a):
+#def subwf(cpu, f, d, a):
     #"""Substitute WREG from 'f'
     #Flags Z, N, OV, DC, C are affects
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg1, arg2 = pic.data[argAddr], (~pic.wreg + 1) & 0xff
+    #arg1, arg2 = cpu.data[argAddr], (~pic.wreg + 1) & 0xff
     #result = arg1 + arg2
 
     #set_bits = 0
@@ -762,29 +821,29 @@ class MOVWF(Op):
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
 
 #subwf.size = 2
 
 
-#def subwfb(pic, f, d, a):
+#def subwfb(cpu, f, d, a):
     #"""Substitute WREG from 'f' with borrow
     #Flags Z, N, OV, DC, C are affects
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg1 = pic.data[argAddr]
-    #arg2 = (-pic.wreg) & 0xff
-    #arg3 = 0 if (pic.status & C == 1) else 0xff
+    #arg1 = cpu.data[argAddr]
+    #arg2 = (-cpu.wreg) & 0xff
+    #arg3 = 0 if (cpu.status & C == 1) else 0xff
     #result = arg1 + arg2 + arg3
 
     #set_bits = 0
@@ -800,49 +859,49 @@ class MOVWF(Op):
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.data[resAddr] = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.data[resAddr] = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
 
 #subwfb.size = 2
 
 
-#def swapf(pic, f, d, a):
+#def swapf(cpu, f, d, a):
     #"""Exchange nibbles in 'f'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #d: flag specifying direction of saving result (if d = 0 then result is saved in WREG else in register by address defined 'f')
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = WREG if d == 0 else argAddr
 
-    #arg = pic.data[argAddr]
+    #arg = cpu.data[argAddr]
     #nibble1, nibble2 = arg & 0xf, (arg & 0xf0) >> 4
-    #pic.data[resAddr] = (nibble1 << 4) | nibble2
+    #cpu.data[resAddr] = (nibble1 << 4) | nibble2
 
 #swapf.size = 2
 
 
-#def tstfsz(pic, f, a):
+#def tstfsz(cpu, f, a):
     #"""Test 'f', skip next instruction if it's equal 0
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #if pic.data[argAddr] == 0:
-        #pic.incPC(2)
+    #if cpu.data[argAddr] == 0:
+        #cpu.incPC(2)
 
 #tstfsz.size = 2
 
 
-#def xorwf(pic, f, d, a):
+#def xorwf(cpu, f, d, a):
     #"""Logical exclusive OR between WREG and 'f'
     #Flags Z and N are affected
     #f: part of argument register address
@@ -850,11 +909,11 @@ class MOVWF(Op):
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
     #resAddr = argAddr if d == 1 else WREG
-    #_xor(pic, resAddr, pic.wreg, pic.data[argAddr])
+    #_xor(cpu, resAddr, pic.wreg, pic.data[argAddr])
 
 #xorwf.size = 2
 
@@ -862,87 +921,87 @@ class MOVWF(Op):
 ###################################################
 ## Bit oriented operations with registries
 ###################################################
-#def bcf(pic, f, b, a):
+#def bcf(cpu, f, b, a):
     #"""Reset bit in 'f'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #b: number of bit to be reset
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #pic.data[argAddr] &= ~(1 << b)
+    #cpu.data[argAddr] &= ~(1 << b)
 
 #bcf.size = 2
 
 
-#def bsf(pic, f, b, a):
+#def bsf(cpu, f, b, a):
     #"""Set bit in 'f'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #b: number of bit to be set
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #pic.data[argAddr] |= (1 << b)
+    #cpu.data[argAddr] |= (1 << b)
 
 #bsf.size = 2
 
 
-#def btfsc(pic, f, b, a):
+#def btfsc(cpu, f, b, a):
     #"""Test bit; skip next instruction if it's equal '0'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #b: number of bit for testing
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #bit = (pic.data[argAddr] >> b) & 0x01
+    #bit = (cpu.data[argAddr] >> b) & 0x01
     #if bit == 0:
-        #pic.incPC(2)
+        #cpu.incPC(2)
 
 #btfsc.size = 2
 
 
-#def btfss(pic, f, b, a):
+#def btfss(cpu, f, b, a):
     #"""Test bit; skip next instruction if it's equal '1'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #b: number of bit for testing
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #bit = (pic.data[argAddr] >> b) & 0x01
+    #bit = (cpu.data[argAddr] >> b) & 0x01
     #if bit == 1:
-        #pic.incPC(2)
+        #cpu.incPC(2)
 
 #btfss.size = 2
 
 
-#def btg(pic, f, b, a):
+#def btg(cpu, f, b, a):
     #"""Inverse bit in 'f'
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: part of argument register address
     #b: number of bit for testing
     #a: flag specifying register address (if a = 1 then address is defined with BSR else fast access bank is used)
     #"""
     #if a == 1:
-        #argAddr = (pic.bsr << 8) | f
+        #argAddr = (cpu.bsr << 8) | f
     #else:
         #argAddr = f if f < 0x80 else (0xf00 | f)
-    #arg = pic.data[argAddr]
-    #pic.data[argAddr] = (arg | (1 << b)) & ~(arg & (1 << b))
+    #arg = cpu.data[argAddr]
+    #cpu.data[argAddr] = (arg | (1 << b)) & ~(arg & (1 << b))
 
 #btg.size = 2
 
@@ -950,105 +1009,105 @@ class MOVWF(Op):
 ##############################################
 ## Control instructions
 ##############################################
-#def bc(pic, n):
+#def bc(cpu, n):
     #"""Branch if carry
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & C) > 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & C) > 0:
+        #cpu.incPC(2*n)
 
 #bc.size = 2
 
 
-#def bn(pic, n):
+#def bn(cpu, n):
     #"""Branch if negative result
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & N) > 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & N) > 0:
+        #cpu.incPC(2*n)
 
 #bn.size = 2
 
 
-#def bnc(pic, n):
+#def bnc(cpu, n):
     #"""Branch if not carry
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & C) == 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & C) == 0:
+        #cpu.incPC(2*n)
 
 #bnc.size = 2
 
 
-#def bnn(pic, n):
+#def bnn(cpu, n):
     #"""Branch if not negative result
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & N) == 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & N) == 0:
+        #cpu.incPC(2*n)
 
 #bnn.size = 2
 
 
-#def bnov(pic, n):
+#def bnov(cpu, n):
     #"""Branch if not overflow
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & OV) == 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & OV) == 0:
+        #cpu.incPC(2*n)
 
 #bnov.size = 2
 
 
-#def bnz(pic, n):
+#def bnz(cpu, n):
     #"""Branch if not zero
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & Z) == 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & Z) == 0:
+        #cpu.incPC(2*n)
 
 #bnz.size = 2
 
 
-#def bov(pic, n):
+#def bov(cpu, n):
     #"""Branch if overflow
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & OV) > 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & OV) > 0:
+        #cpu.incPC(2*n)
 
 #bov.size = 2
 
 
-#def bra(pic, n):
+#def bra(cpu, n):
     #"""Unconditional branch
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #pic.incPC(2*n)
+    #cpu.incPC(2*n)
 
 #bra.size = 2
 
 
-#def bz(pic, n):
+#def bz(cpu, n):
     #"""Branch if zero
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #n: number of jumps (instructions in both directions)
     #"""
-    #if (pic.status & Z) > 0:
-        #pic.incPC(2*n)
+    #if (cpu.status & Z) > 0:
+        #cpu.incPC(2*n)
 
 #bz.size = 2
 
 
-#def call(pic, n, s):
+#def call(cpu, n, s):
     #"""Goto subroutine in all range of memory:
         #* return address (PC + 4) is saved in stack
         #* if s = 1 then WREG, STATUS, BSR is saved in fast access registers
@@ -1059,136 +1118,136 @@ class MOVWF(Op):
 #call.size = 4
 
 
-#def clrwdt(pic):
+#def clrwdt(cpu):
     #"""Reset watcdog"""
     #pass
 
-#def daw(pic):
+#def daw(cpu):
     #"""Decimal correction of WREG"""
     #pass
 
-#def goto(pic, n):
+#def goto(cpu, n):
     #"""Goto to address"""
     #pass
 
-#def nop(pic):
+#def nop(cpu):
     #"""No operation"""
     #pass
 
-#def pop(pic):
+#def pop(cpu):
     #"""Read the top of stack TOS"""
     #pass
 
-#def push(pic):
+#def push(cpu):
     #"""Record into the top of stack TOS"""
     #pass
 
-#def rcall(pic, n):
+#def rcall(cpu, n):
     #"""Short branch to subroutine"""
     #pass
 
-#def reset(pic):
+#def reset(cpu):
     #"""Program reset"""
     #pass
 
-#def retfie(pic, s):
+#def retfie(cpu, s):
     #"""Return from subroutine with permit of interruption"""
     #pass
 
-#def retlw(pic, k):
+#def retlw(cpu, k):
     #"""Return from subroutine with loading of WREG"""
     #pass
 
-#def return_(pic, s):
+#def return_(cpu, s):
     #"""Return from subroutine"""
     #pass
 
-#def sleep(pic):
+#def sleep(cpu):
     #"""Goto sleep mode"""
     #pass
 
 #############################################
 ## Operations with constants
 #############################################
-#def addlw(pic, k):
+#def addlw(cpu, k):
     #"""Add WREG with constant 'k'
     #affect C, DC, Z, OV, N
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value to be added
     #"""
-    #_add(pic, WREG, pic.wreg, k)
+    #_add(cpu, WREG, pic.wreg, k)
 
 #addlw.size = 2
 
-#def andlw(pic, k):
+#def andlw(cpu, k):
     #"""Logical conjunction WREG with constant 'k'
     #affect Z and N
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value
     #"""
-    #_and(pic, WREG, pic.wreg, k)
+    #_and(cpu, WREG, pic.wreg, k)
 
-#def iorlw(pic, k):
+#def iorlw(cpu, k):
     #"""Logical disjunction WREG with constant 'k'
     #affect Z and N
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value
     #"""
-    #_ior(pic, WREG, pic.wreg, k)
+    #_ior(cpu, WREG, pic.wreg, k)
 
-#def lfsr(pic, f, k):
+#def lfsr(cpu, f, k):
     #"""Put constant value (12 bit) to FSR (2 words)
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #f: number of FSR register (0-3)
     #k: constant value (12 bit)
     #"""
     #if f == 0:
-        #pic.fsr0l = k & 0xff
-        #pic.fsr0h = (k & 0x0f00) >> 8
+        #cpu.fsr0l = k & 0xff
+        #cpu.fsr0h = (k & 0x0f00) >> 8
     #elif f == 1:
-        #pic.fsr1l = k & 0xff
-        #pic.fsr1h = (k & 0x0f00) >> 8
+        #cpu.fsr1l = k & 0xff
+        #cpu.fsr1h = (k & 0x0f00) >> 8
     #elif f == 2:
-        #pic.fsr2l = k & 0xff
-        #pic.fsr2h = (k & 0x0f00) >> 8
+        #cpu.fsr2l = k & 0xff
+        #cpu.fsr2h = (k & 0x0f00) >> 8
 
-#def movlb(pic, k):
+#def movlb(cpu, k):
     #"""Move constant value to BSR<3:0>
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value (0-0x0f)
     #"""
-    #pic.bsr = k
+    #cpu.bsr = k
 
-#def movlw(pic, k):
+#def movlw(cpu, k):
     #"""Move constant to WREG
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value
     #"""
-    #pic.wreg = k
+    #cpu.wreg = k
 
-#def mullw(pic, k):
+#def mullw(cpu, k):
     #"""Multiplication constant value with WREG
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value
     #"""
-    #result = pic.wreg * k
-    #pic.prodl = result & 0xff
-    #pic.prodh = (result & 0xff00) >> 8
+    #result = cpu.wreg * k
+    #cpu.prodl = result & 0xff
+    #cpu.prodh = (result & 0xff00) >> 8
 
-#def retlw(pic, k):
+#def retlw(cpu, k):
     #"""Return from subroutine with loading WREG
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value
     #"""
     #pass
 
-#def sublw(pic, k):
+#def sublw(cpu, k):
     #"""Substitute WREG from constant value
     #affect C, DC, Z, OV, N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value
     #"""
-    #arg = (~pic.wreg + 1) & 0xff
+    #arg = (~cpu.wreg + 1) & 0xff
     #result = k + arg
 
     #set_bits = 0
@@ -1203,49 +1262,49 @@ class MOVWF(Op):
     #if result & 0x80 > 0:
         #set_bits |= N
 
-    #pic.wreg = result & 0xff
-    #pic.affectStatusBits(0x1f, set_bits)
+    #cpu.wreg = result & 0xff
+    #cpu.affectStatusBits(0x1f, set_bits)
 
-#def xorlw(pic, k):
+#def xorlw(cpu, k):
     #"""Logical exclusive dijunction between constant and WREG
     #affect Z and N flags
-    #pic: core of PIC18F
+    #cpu: core of PIC18F
     #k: constant value
     #"""
-    #_xor(pic, WREG, pic.wreg, k)
+    #_xor(cpu, WREG, pic.wreg, k)
     
 ##############################################
 ## Operations: data memory <-> program memory
 ##############################################
 
-#def tblrd_ask(pic):
+#def tblrd_ask(cpu):
     #"""Table read"""
     #pass
 
-#def tblrd_ask_plus(pic):
+#def tblrd_ask_plus(cpu):
     #"""Table read with post-increment"""
     #pass
 
-#def tblrd_ask_minus(pic):
+#def tblrd_ask_minus(cpu):
     #"""Table read with post-decrement"""
     #pass
 
-#def tblrd_plus_ask(pic):
+#def tblrd_plus_ask(cpu):
     #"""Table read with pred-increment"""
     #pass
 
-#def tblwt_ask(pic):
+#def tblwt_ask(cpu):
     #"""Table write"""
     #pass
 
-#def tblwt_ask_plus(pic):
+#def tblwt_ask_plus(cpu):
     #"""Table write with post-increment"""
     #pass
 
-#def tblwt_ask_minus(pic):
+#def tblwt_ask_minus(cpu):
     #"""Table write with post-decrement"""
     #pass
 
-#def tblwt_plus_ask(pic):
+#def tblwt_plus_ask(cpu):
     #"""Table write with pred-increment"""
     #pass
