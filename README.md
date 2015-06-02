@@ -5,13 +5,19 @@ school simulator of microcontroller PIC18F
 
 ### Requirements
 python 2.7
+nose
+
+### Build
+```
+python setup.py build
+```
 
 ### Unit testing
 ```
-python test/runner.py
+nosetests
 ```
 
 ### Run
 ```
-python cli.py
+python build/<dir_lib>/minipic/cli.py
 ```
