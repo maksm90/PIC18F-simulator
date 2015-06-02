@@ -94,7 +94,7 @@ COP_TSTFSZ = 0x6600
 COP_XORLW = 0x0A00
 COP_XORWF = 0x1800
 
-def decode_op(opcode):
+def decode_op(opcode, next_opcode):
     """ Decode code of operation and return op object """
 
     # 16-bit operations
@@ -131,7 +131,7 @@ def decode_op(opcode):
     # 7-bit operations
     op = CMD_COP7(opcode)
     if op == COP_CALL:
-        return 
+        return NOP()
     elif op == COP_MOVWF:
         return MOVWF(opcode & 0xff, (opcode & 0x100) >> 8)
 
@@ -162,10 +162,17 @@ def load_hex(hexfile, pic):
         if type_rec == 0:
             # copy chunk of bytes into program memory of MC
             for i in xrange(0, data_len, 2):
-                s_opcode = data[(2*i + 2):(2*i + 4)] + data[2*i:(2*i + 2)]
-                opcode = int(s_opcode, 16)
+                byte1 = int(data[2*i:(2*i + 2)], 16)
+                byte2 = int(data[(2*i + 2):(2*i + 4)], 16)
+                if i + 2 < data_len:
+                    byte3 = int(data[(2*i + 4):(2*i + 6)], 16)
+                    byte4 = int(data[(2*i + 6):(2*i + 8)], 16)
+                else:
+                    byte3, byte4 = 0, 0
+                opcode = (byte2 << 8) + byte1
+                next_opcode = (byte4 << 8) + byte3
                 addr = ((higher_addr << 16) | start_addr) + i
-                pic.program[addr] = decode_op(opcode)
+                pic.program[addr] = decode_op(opcode, next_opcode)
         elif type_rec == 1:
             return
         elif type_rec == 4:

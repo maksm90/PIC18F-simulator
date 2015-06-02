@@ -15,13 +15,14 @@ class DataMemory:
         self.memory = {
                 WREG: ByteRegister(WREG, trace),
                 BSR: ByteRegister(BSR, trace),
-                STATUS: Status(trace)
+                STATUS: Status(trace),
+                STKPTR: ByteRegister(STKPTR, trace)
                 }
     def __getitem__(self, addr):
         return self.memory.setdefault(addr, ByteRegister(addr, self.trace))
 
 class ProgramMemory:
-    """Program memory of PICmicro"""
+    """ Program memory of PICmicro """
     SIZE = 0x200000
     def __init__(self):
         self.memory = [NOP()] * (self.SIZE >> 1)
@@ -29,6 +30,29 @@ class ProgramMemory:
         return self.memory[addr >> 1]
     def __setitem__(self, addr, op):
         self.memory[addr >> 1] = op
+
+class Stack:
+    """ Stack memory """
+    SIZE = 31
+    STKFUL, STKUNF = 7, 6
+    def __init__(self, stkptr_reg):
+        self.ws = self.statuss = self.bsrs = 0
+        self.memory = [0] * self.SIZE
+        self.stkptr_reg = stkptr_reg
+    def push(self, data):
+        stkptr = self.stkptr_reg.get()
+        if (stkptr & 0x1f) == 0x1f:
+            self.stkptr_reg[self.STKFUL] = 1
+            return
+        self.memory[stkptr & 0x1f] = data
+        self.stkptr_reg.put(stkptr + 1)
+    def pop(self):
+        stkptr = self.stkptr_reg.get()
+        if (stkptr & 0x1f) == 0:
+            self.stkptr_reg[self.STKUNF] = 1
+            return
+        self.stkptr_reg.put(stkptr - 1)
+        return self.memory[(stkptr - 1) & 0x1f]
 
 class TraceBuf:
     """ Buffer for saving of trace logs """
@@ -58,6 +82,7 @@ class MCU(object):
         self.pc = PC()
         self.data = DataMemory(self.trace)
         self.program = ProgramMemory()
+        self.stack = Stack(self.data[STKPTR])
 
 
 

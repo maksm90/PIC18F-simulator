@@ -56,6 +56,13 @@ class BTFSC(Op):
         if reg[self.b] == 0:
             cpu.pc.inc(2)
 
+class CALL(Op):
+    """ Goto subroutine in all range of memory """
+    def __init__(self, n, s):
+        self.n = n
+        self.s = s
+    def execute(self, cpu):
+        pass
 
 
 
