@@ -17,14 +17,6 @@ class Register:
     def __getitem__(self, i):
         raise NotImplementedError()
 
-class PC: 
-    """ Program counter """
-    MAX_VALUE = 0x200000
-    def __init__(self):
-        self.value = 0
-    def inc(self, delta):
-        self.value = (self.value + delta) % self.MAX_VALUE
-
 class ByteRegister(Register):
     """ Concrete class of register storing byte value """
     def __init__(self, addr, trace):

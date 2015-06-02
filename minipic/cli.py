@@ -131,7 +131,8 @@ def decode_op(opcode, next_opcode):
     # 7-bit operations
     op = CMD_COP7(opcode)
     if op == COP_CALL:
-        return NOP()
+        return CALL((opcode & 0xff) | ((next_opcode & 0xfff) << 8),
+                    (opcode & 0x100) >> 8)
     elif op == COP_MOVWF:
         return MOVWF(opcode & 0xff, (opcode & 0x100) >> 8)
 
@@ -152,6 +153,8 @@ def decode_op(opcode, next_opcode):
     elif op == COP_BTG:
         return BTG(opcode & 0xff, (opcode & 0xe00) >> 9, (opcode & 0x100) >> 8)
 
+    return NOP()
+
 def load_hex(hexfile, pic):
     higher_addr = 0
     for line in hexfile:
@@ -169,8 +172,8 @@ def load_hex(hexfile, pic):
                     byte4 = int(data[(2*i + 6):(2*i + 8)], 16)
                 else:
                     byte3, byte4 = 0, 0
-                opcode = (byte2 << 8) + byte1
-                next_opcode = (byte4 << 8) + byte3
+                opcode = (byte2 << 8) | byte1
+                next_opcode = (byte4 << 8) | byte3
                 addr = ((higher_addr << 16) | start_addr) + i
                 pic.program[addr] = decode_op(opcode, next_opcode)
         elif type_rec == 1:
@@ -207,7 +210,6 @@ class CLI(Cmd):
                 tuple(map(hex, reversed(current_op.__dict__.values()))))
                 ) 
             current_op.execute(self.pic)
-            self.pic.pc.inc(current_op.SIZE)
             for log_record in self.pic.trace:
                 print log_record
             print 'WREG = ' + str(self.pic.data[WREG].value), \
