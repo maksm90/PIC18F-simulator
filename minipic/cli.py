@@ -140,6 +140,8 @@ def decode_op(opcode, next_opcode):
     op = CMD_COP6(opcode)
     if op == COP_ADDWF:
         return NOP()
+    elif op == COP_DECFSZ:
+        return DECFSZ(opcode & 0xff, (opcode & 0x200) >> 9, (opcode & 0x100) >> 8)
 
     # 5-bit operations
     op = CMD_COP5(opcode)

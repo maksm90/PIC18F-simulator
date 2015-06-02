@@ -7,6 +7,10 @@ def _operand_reg(cpu, f, a):
         addr = f if f < 0x80 else (0x0f00 | f)
     return cpu.data[addr]
 
+def _result_reg(cpu, operand_reg, d):
+    return cpu.data[picmicro.WREG] if d == 0 else operand_reg
+
+
 class Op:
     """ Abstract class of operation of MC """
     SIZE = 2
@@ -74,7 +78,20 @@ class CALL(Op):
             cpu.stack.statuss = cpu.data[picmicro.STATUS]
             cpu.stack.bsrs = cpu.data[picmicro.BSR]
 
-
+class DECFSZ(Op):
+    """ Decrement 'f', skip next instruction if result is equal 0 """
+    def __init__(self, f, d, a):
+        self.f = f
+        self.d = d
+        self.a = a
+    def execute(self, cpu):
+        src = _operand_reg(cpu, self.f, self.a)
+        dest = _result_reg(cpu, src, self.d)
+        result = src.get() - 1
+        if result == 0:
+            cpu.pc.inc(2)
+        dest.put(result)
+        cpu.pc.inc(self.SIZE)
 
 
 
