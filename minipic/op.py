@@ -74,9 +74,9 @@ class CALL(Op):
         cpu.stack.push(cpu.pc.value + 4)
         cpu.pc.value = self.n << 1
         if self.s == 1:
-            cpu.stack.ws = cpu.data[picmicro.WREG]
-            cpu.stack.statuss = cpu.data[picmicro.STATUS]
-            cpu.stack.bsrs = cpu.data[picmicro.BSR]
+            cpu.stack.ws = cpu.data[picmicro.WREG].get()
+            cpu.stack.statuss = cpu.data[picmicro.STATUS].get()
+            cpu.stack.bsrs = cpu.data[picmicro.BSR].get()
 
 class DECFSZ(Op):
     """ Decrement 'f', skip next instruction if result is equal 0 """
@@ -93,9 +93,25 @@ class DECFSZ(Op):
         dest.put(result)
         cpu.pc.inc(self.SIZE)
 
+class GOTO(Op):
+    """ Go to specific address """
+    SIZE = 4
+    def __init__(self, k):
+        self.k = k
+    def execute(self, cpu):
+        cpu.pc.value = self.k << 1
 
-
-
+class RETURN(Op):
+    """ Return from subroutine """
+    SIZE = 1
+    def __init__(self, s):
+        self.s = s
+    def execute(self, cpu):
+        cpu.pc.value = cpu.stack.pop()
+        if self.s == 1:
+            cpu.data[picmicro.WREG].set(pic.stack.ws)
+            cpu.data[picmicro.STATUS].set(pic.stack.statuss)
+            cpu.data[picmicro.BSR].set(pic.stack.bsrs)
 
 
 
@@ -126,7 +142,7 @@ class DECFSZ(Op):
     #carry = (result & 0x100) >> 8
     #set_bits = carry
     #decCarry = (((arg1 & 0xf) + (arg2 & 0xf)) & 0x10) >> 4
-    #set_bits |= decCarry << 1
+    #set_specificbits |= decCarry << 1
     #if result & 0xff == 0:
         #set_bits |= Z
     #signCarry = (((arg1 & 0x7f) + (arg2 & 0x7f)) & 0x80) >> 7

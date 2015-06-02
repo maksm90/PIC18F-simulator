@@ -110,6 +110,8 @@ def decode_op(opcode, next_opcode):
     op = CMD_COP15(opcode)
     if op == COP_RETFIE:
         return NOP()
+    elif op == COP_RETURN:
+        return RETURN(opcode & 1)
 
     # 12-bit operations
     op = CMD_COP12(opcode)
@@ -127,6 +129,8 @@ def decode_op(opcode, next_opcode):
         return NOP()
     elif op == COP_MOVLW:
         return MOVLW(opcode & 0xff)
+    elif op == COP_GOTO:
+        return GOTO((opcode & 0xff) | ((next_opcode & 0xfff) << 8))
 
     # 7-bit operations
     op = CMD_COP7(opcode)
