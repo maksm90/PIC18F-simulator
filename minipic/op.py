@@ -1,4 +1,4 @@
-import picmicro
+from register import WREG
 
 def _operand_reg(cpu, f, a):
     if a == 1:
@@ -8,7 +8,7 @@ def _operand_reg(cpu, f, a):
     return cpu.data[addr]
 
 def _result_reg(cpu, operand_reg, d):
-    return cpu.data[picmicro.WREG] if d == 0 else operand_reg
+    return cpu.data[WREG] if d == 0 else operand_reg
 
 
 class Op:
@@ -27,7 +27,7 @@ class MOVLW(Op):
     def __init__(self, k):
         self.k = k
     def execute(self, cpu):
-        cpu.data[picmicro.WREG].put(self.k)
+        cpu.data[WREG].put(self.k)
         cpu.pc.inc(self.SIZE)
 
 class MOVWF(Op):
@@ -36,7 +36,7 @@ class MOVWF(Op):
         self.f = f
         self.a = a
     def execute(self, cpu):
-        wreg_value = cpu.data[picmicro.WREG].get()
+        wreg_value = cpu.data[WREG].get()
         dest = _operand_reg(cpu, self.f, self.a)
         dest.put(wreg_value) 
         cpu.pc.inc(self.SIZE)
@@ -74,9 +74,9 @@ class CALL(Op):
         cpu.stack.push(cpu.pc.value + 4)
         cpu.pc.value = self.n << 1
         if self.s == 1:
-            cpu.stack.ws = cpu.data[picmicro.WREG].get()
-            cpu.stack.statuss = cpu.data[picmicro.STATUS].get()
-            cpu.stack.bsrs = cpu.data[picmicro.BSR].get()
+            cpu.stack.ws = cpu.data[WREG].get()
+            cpu.stack.statuss = cpu.data[STATUS].get()
+            cpu.stack.bsrs = cpu.data[BSR].get()
 
 class DECFSZ(Op):
     """ Decrement 'f', skip next instruction if result is equal 0 """
@@ -109,9 +109,9 @@ class RETURN(Op):
     def execute(self, cpu):
         cpu.pc.value = cpu.stack.pop()
         if self.s == 1:
-            cpu.data[picmicro.WREG].set(pic.stack.ws)
-            cpu.data[picmicro.STATUS].set(pic.stack.statuss)
-            cpu.data[picmicro.BSR].set(pic.stack.bsrs)
+            cpu.data[WREG].set(pic.stack.ws)
+            cpu.data[STATUS].set(pic.stack.statuss)
+            cpu.data[BSR].set(pic.stack.bsrs)
 
 
 
