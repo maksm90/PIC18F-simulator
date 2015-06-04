@@ -9,14 +9,20 @@ MCU: main class describing core of PIC18F
 """
 from op import NOP
 from register import *
-from ports import IOPorts
+from ports import *
 
 class DataMemory:
     """ Data memory of PIC """
     def __init__(self, trace):
         self.trace = trace
+        trisa_reg = ByteRegister(TRISA, trace)
+        trisb_reg = ByteRegister(TRISB, trace)
         self.memory = {
                 STATUS: Status(trace),
+                TRISA: trisa_reg,
+                TRISB: trisb_reg,
+                PORTA: PortA(trisa_reg, trace),
+                PORTB: PortB(trisb_reg, trace)
                 }
     def __getitem__(self, addr):
         return self.memory.setdefault(addr, ByteRegister(addr, self.trace))
@@ -98,7 +104,9 @@ class MCU(object):
         self.data = DataMemory(self.trace)
         self.program = ProgramMemory()
         self.stack = Stack(self.data[STKPTR], self.trace)
-        self.ports = IOPorts(self.trace)
+        self.ports = IOPorts(((self.data[PORTA], self.data[TRISA]), 
+                              (self.data[PORTB], self.data[TRISB])), 
+                             self.trace)
 
 
 
