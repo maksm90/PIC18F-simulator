@@ -42,14 +42,10 @@ def _handle_connect_request(conn_socket, request_tokens, io_ports_states, port_t
     elif port == 'rb':
         port_reg, tris_reg = port_tris_regs[1]
 
-    # build state of port object and add it to io_ports_states
-    port_state = IOPortState()
-    port_state.port_reg = port_reg
-    port_state.tris_reg = tris_reg
-    port_state.pin_num = pin
+    # get state of port object and complete it
+    port_state = io_ports_states[port][pin]
     port_state.direction = direction
     port_state.conn_socket = conn_socket
-    io_ports_states[port][pin] = port_state
 
     # run thread to realize bit streaning through port  
     port_thread = threading.Thread(target=_run_port_thread, args=(port_state, trace))
@@ -69,9 +65,11 @@ def _run_server(port_num, port_tris_regs, trace):
             'rb': [None] * 8
             }
     for i in xrange(8):
+        io_ports_states['ra'][i] = IOPortState()
         io_ports_states['ra'][i].port_reg = port_tris_regs[0][0]
         io_ports_states['ra'][i].tris_reg = port_tris_regs[0][1]
         io_ports_states['ra'][i].pin_num = i
+        io_ports_states['rb'][i] = IOPortState()
         io_ports_states['rb'][i].port_reg = port_tris_regs[1][0]
         io_ports_states['rb'][i].tris_reg = port_tris_regs[1][1]
         io_ports_states['rb'][i].pin_num = i
