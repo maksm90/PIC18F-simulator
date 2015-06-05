@@ -5,6 +5,8 @@ Definition of registers
 # special function registers addresses contants
 WREG, STATUS, BSR = 0xfe8, 0xfd8, 0xfe0
 STKPTR = 0xffc
+PORTA, PORTB = 0xf80, 0xf81
+TRISA, TRISB = 0xf92, 0xf93
 
 class Register:
     """ Abstract class of register with bit-vector operations support """
