@@ -52,12 +52,22 @@ class Status(ByteRegister):
     def __setitem__(self, i, bit):
         pass
     def put_N(self, bit):
-        pass
+        assert bit in (0, 1)
+        self.value = (self.value & 0x0f) | (bit << 4)
+        self.trace.add_event(('status_set', 'N', bit))
     def put_OV(self, bit):
-        pass
+        assert bit in (0, 1)
+        self.value = (self.value & 0x17) | (bit << 3)
+        self.trace.add_event(('status_set', 'OV', bit))
     def put_Z(self, bit):
-        pass
+        assert bit in (0, 1)
+        self.value = (self.value & 0x1b) | (bit << 2)
+        self.trace.add_event(('status_set', 'Z', bit))
     def put_DC(self, bit):
-        pass
+        assert bit in (0, 1)
+        self.value = (self.value & 0x1d) | (bit << 1)
+        self.trace.add_event(('status_set', 'DC', bit))
     def put_C(self, bit):
-        pass
+        assert bit in (0, 1)
+        self.value = (self.value & 0x1e) | bit
+        self.trace.add_event(('status_set', 'C', bit))

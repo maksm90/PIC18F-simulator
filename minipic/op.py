@@ -10,6 +10,16 @@ def _operand_reg(cpu, f, a):
 def _result_reg(cpu, operand_reg, d):
     return cpu.data[WREG] if d == 0 else operand_reg
 
+def _add(operand_reg1, operand_reg2, result_reg, flag_reg):
+    operand1, operand2 = operand_reg1.get(), operand_reg2.get()
+    result = operand1 + operand2
+    result_reg.put(result & 0xff)
+    flag_reg.put_C((result & 0x100) >> 8)
+    flag_reg.put_OV((~(operand1 ^ operand2) >> 7) & ((operand1 ^ result) >> 7))
+    flag_reg.put_N((result & 0x80) >> 7)
+    flag_reg.put_Z(int((result & 0xff) == 0))
+    flag_reg.put_DC(((operand1 & 0xf) + (operand2 & 0xf) & 0x10) >> 4)
+
 
 class Op:
     """ Abstract class of operation of MC """
@@ -127,7 +137,19 @@ class RLNCF(Op):
         dest.put(result)
         cpu.data[STATUS].put_Z(result == 0)
         cpu.data[STATUS].put_N((result & 0x80) >> 7)
+        cpu.pc.inc(self.SIZE)
     
+class ADDWF(Op):
+    """ Add WREG with 'f'; have effect on flags C, DC, Z, OV, N """
+    def __init__(self, f, d, a):
+        self.f = f
+        self.d = d
+        self.a = a
+    def execute(self, cpu):
+        src = _operand_reg(cpu, self.f, self.a)
+        dest = _result_reg(cpu, src, self.d)
+        _add(src, cpu.data[WREG], dest, cpu.data[STATUS])
+        cpu.pc.inc(self.SIZE)
 
 
 

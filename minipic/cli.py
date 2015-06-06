@@ -144,7 +144,7 @@ def decode_op(opcode, next_opcode):
     op = CMD_COP6(opcode)
     f, d, a = opcode & 0xff, (opcode & 0x200) >> 9, (opcode & 0x100) >> 8
     if op == COP_ADDWF:
-        return NOP()
+        return ADDWF(f, d, a)
     elif op == COP_DECFSZ:
         return DECFSZ(f, d, a)
     elif op == COP_RLNCF:
