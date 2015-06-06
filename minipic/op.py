@@ -151,7 +151,13 @@ class ADDWF(Op):
         _add(src, cpu.data[WREG], dest, cpu.data[STATUS])
         cpu.pc.inc(self.SIZE)
 
-
+class RETLW(Op):
+    """ Return from subroutine with loading WREG """
+    def __init__(self, k):
+        self.k = k
+    def execute(self, cpu):
+        cpu.data[WREG].put(self.k)
+        cpu.pc.value = cpu.stack.pop()
 
 
 

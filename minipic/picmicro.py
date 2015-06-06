@@ -13,12 +13,13 @@ from ports import *
 
 class DataMemory:
     """ Data memory of PIC """
-    def __init__(self, trace):
+    def __init__(self, pc, trace):
         self.trace = trace
         self.memory = {
                 STATUS: Status(trace),
                 PORTA: PortA(trace),
-                PORTB: PortB(trace)
+                PORTB: PortB(trace),
+                PCL: Pcl(pc, trace)
                 }
     def __getitem__(self, addr):
         return self.memory.setdefault(addr, ByteRegister(addr, self.trace))
@@ -97,7 +98,7 @@ class MCU(object):
     def __init__(self):
         self.trace = TraceBuf()
         self.pc = PC()
-        self.data = DataMemory(self.trace)
+        self.data = DataMemory(self.pc, self.trace)
         self.program = ProgramMemory()
         self.stack = Stack(self.data[STKPTR], self.trace)
         self.ports = IOPorts(((self.data[PORTA], self.data[TRISA]), 

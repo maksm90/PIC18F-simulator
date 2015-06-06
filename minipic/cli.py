@@ -125,10 +125,13 @@ def decode_op(opcode, next_opcode):
 
     # 8-bit operations
     op = CMD_COP8(opcode)
+    k = opcode & 0xff
     if op == COP_ADDLW:
         return NOP()
     elif op == COP_MOVLW:
-        return MOVLW(opcode & 0xff)
+        return MOVLW(k)
+    elif op == COP_RETLW:
+        return RETLW(k)
     elif op == COP_GOTO:
         return GOTO((opcode & 0xff) | ((next_opcode & 0xfff) << 8))
 

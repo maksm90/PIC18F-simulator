@@ -4,6 +4,7 @@ Definition of registers
 
 # special function registers addresses contants
 WREG, STATUS, BSR = 0xfe8, 0xfd8, 0xfe0
+PCL = 0xff9
 STKPTR = 0xffc
 PORTA, PORTB = 0xf80, 0xf81
 TRISA, TRISB = 0xf92, 0xf93
@@ -71,3 +72,22 @@ class Status(ByteRegister):
         assert bit in (0, 1)
         self.value = (self.value & 0x1e) | bit
         self.trace.add_event(('status_set', 'C', bit))
+
+class Pcl(ByteRegister):
+    """ Low byte of PC """
+    def __init__(self, pc, trace):
+        ByteRegister.__init__(self, PCL, trace)
+        self.pc = pc
+    def put(self, value):
+        ByteRegister.put(self, value)
+        self.pc.value = (self.pc.value & ~0xff) | value
+    def get(self):
+        self.value = self.pc.value & 0xff
+        return ByteRegister.get(self)
+    def __setitem__(self, i, bit):
+        ByteRegister.__setitem__(self, i, bit)
+        bit_pattern = 1 << i
+        self.pc.value = (self.pc.value & ~bit_pattern) | (bit << i)
+    def __getitem__(self, i):
+        self.value = self.pc.value & 0xff
+        return ByteRegister.__getitem__(self, i)
