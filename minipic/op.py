@@ -1,4 +1,4 @@
-from register import WREG
+from register import WREG, STATUS
 
 def _operand_reg(cpu, f, a):
     if a == 1:
@@ -87,7 +87,7 @@ class DECFSZ(Op):
     def execute(self, cpu):
         src = _operand_reg(cpu, self.f, self.a)
         dest = _result_reg(cpu, src, self.d)
-        result = src.get() - 1
+        result = (src.get() - 1) & 0xff
         if result == 0:
             cpu.pc.inc(2)
         dest.put(result)
@@ -113,7 +113,21 @@ class RETURN(Op):
             cpu.data[STATUS].set(pic.stack.statuss)
             cpu.data[BSR].set(pic.stack.bsrs)
 
-
+class RLNCF(Op):
+    """ Left shift without carry; have effect on flags Z, N """
+    def __init__(self, f, d, a):
+        self.f = f
+        self.d = d
+        self.a = a
+    def execute(self, cpu):
+        src = _operand_reg(cpu, self.f, self.a)
+        dest = _result_reg(cpu, src, self.d)
+        result = src.get() << 1
+        result = (result | (result >> 8)) & 0xff
+        dest.put(result)
+        cpu.data[STATUS].put_Z(result == 0)
+        cpu.data[STATUS].put_N((result & 0x80) >> 7)
+    
 
 
 

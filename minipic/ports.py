@@ -10,9 +10,9 @@ def _run_port_thread(regs, pin_state, trace):
             s_bit = pin_state.conn_socket.recv(8)
             if not s_bit:
                 break
-            bit = int(s_bit[:1], 2)
-            trace.add_event(('bit_receive', port.addr, pin, bit))
             if tris[pin] == 1:
+                bit = int(s_bit[:1], 2)
+                trace.add_event(('bit_receive', port.addr, pin, bit))
                 port[pin] = bit
     elif pin_state.direction == 'out':
         while 1:

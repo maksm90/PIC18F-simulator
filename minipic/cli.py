@@ -142,10 +142,13 @@ def decode_op(opcode, next_opcode):
 
     # 6-bit operations
     op = CMD_COP6(opcode)
+    f, d, a = opcode & 0xff, (opcode & 0x200) >> 9, (opcode & 0x100) >> 8
     if op == COP_ADDWF:
         return NOP()
     elif op == COP_DECFSZ:
-        return DECFSZ(opcode & 0xff, (opcode & 0x200) >> 9, (opcode & 0x100) >> 8)
+        return DECFSZ(f, d, a)
+    elif op == COP_RLNCF:
+        return RLNCF(f, d, a)
 
     # 5-bit operations
     op = CMD_COP5(opcode)
@@ -204,10 +207,24 @@ class CLI(Cmd):
             load_hex(f, self.pic)
 
     def do_step(self, line):
-        if line == '':
+        """
+        step [--nolog] [num_steps] 
+        make next interpreter steps with or without logs
+        """
+        tokens = line.split()
+        logged = True
+        if len(tokens) == 0:
             num_steps = 1
+        elif len(tokens) == 1:
+            if line == '--nolog':
+                logged = False
+                num_steps = 1
+            else:
+                num_steps = int(line)
         else:
-            num_steps = int(line)
+            if tokens[0] == '--nolog':
+                logged = False
+            num_steps = int(tokens[1])
         for _ in xrange(num_steps):
             current_op = self.pic.program[self.pic.pc.value]
             self.pic.trace.add_event((
@@ -216,12 +233,13 @@ class CLI(Cmd):
                 tuple(map(hex, reversed(current_op.__dict__.values()))))
                 ) 
             current_op.execute(self.pic)
-            for log_record in self.pic.trace:
-                print log_record
-            print 'WREG = ' + str(self.pic.data[WREG].value), \
-                  'STATUS = ' + str(self.pic.data[STATUS].value), \
-                  'PC = ' + str(self.pic.pc.value)
-            print
+            if logged:
+                for log_record in self.pic.trace:
+                    print log_record
+                print 'WREG = ' + str(self.pic.data[WREG].value), \
+                      'STATUS = ' + str(self.pic.data[STATUS].value), \
+                      'PC = ' + str(self.pic.pc.value)
+                print
 
     def do_addwf(self, line):
         """
